@@ -2,27 +2,29 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { Post } from "./_types/Post";
-
-type PostsResponse = {
-  posts: Post[];
-};
+import type { MicroCmsPost } from "./_types/MicroCmsPost";
 
 export default function PostsPage() {
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<MicroCmsPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetcher = async () => {
-      setIsLoading(true);
+      try {
+        const res = await fetch('https://ief4q233m4.microcms.io/api/v1/posts', {
+          headers: {
+            'X-MICROCMS-API-KEY': 'oCEtDsxAOdAU46mqoQ196w87Lx9ggMZXpmfS',
+          },
+        });
 
-      const res = await fetch("https://1hmfpsvto6.execute-api.ap-northeast-1.amazonaws.com/dev/posts")
+        const { contents } = await res.json();
+        setPosts(contents);
+      } catch (e) {
+        console.error(e);
+      }
 
-      const data: PostsResponse = await res.json()
-
-      setPosts(data.posts)
-      setIsLoading(false);
-    }
+    setIsLoading(false);
+  };
 
     fetcher()
   }, [])
@@ -51,10 +53,10 @@ if (isLoading) {
             <div className="flex gap-2">
               {post.categories.map((category) => (
                 <span
-                  key={category}
+                  key={category.id}
                   className="text-[#4c6ef5] border border-[#4c6ef5] px-2 py-1 text-[12px] rounded"
                 >
-                  {category}
+                  {category.name}
                 </span>
               ))}
             </div>
