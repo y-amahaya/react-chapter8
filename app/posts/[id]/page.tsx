@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import type { Post } from "../../_types/Post";
+import type { MicroCmsPost } from "../../_types/MicroCmsPost";
 import Image from "next/image";
 
 export default function PostDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
 
-  const [post, setPost] = useState<Post | null>(null);
+  const [post, setPost] = useState<MicroCmsPost | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
 useEffect(() => {
@@ -17,11 +17,16 @@ useEffect(() => {
     setIsLoading(true);
 
     const res = await fetch(
-      `https://1hmfpsvto6.execute-api.ap-northeast-1.amazonaws.com/dev/posts/${id}`
+      `https://ief4q233m4.microcms.io/api/v1/posts/${id}`,
+      {
+        headers: {
+          'X-MICROCMS-API-KEY': 'oCEtDsxAOdAU46mqoQ196w87Lx9ggMZXpmfS',
+        },
+      }
     );
     const data = await res.json();
 
-    setPost(data.post);
+    setPost(data);
     setIsLoading(false);
   };
 
@@ -47,14 +52,17 @@ if (!post) {
   return (
     <main className="max-w-[900px] p-4 mx-auto">
       <div className="m-6 border border-[#ddd]">
+
         {post.thumbnailUrl && (
-          <Image
-            width={900}
-            height={500}
-            src={post.thumbnailUrl}
-            alt={post.title}
-            className="w-full h-auto block"
-          />
+          <div className="w-full max-h-[400px] overflow-hidden">
+            <Image
+              width={900}
+              height={500}
+              src={post.thumbnailUrl.url}
+              alt={post.title}
+              className="w-full h-auto block"
+            />
+          </div>
         )}
 
         <div className="p-5">
@@ -66,10 +74,10 @@ if (!post) {
             <div className="flex gap-2">
               {post.categories.map((category) => (
                 <span
-                  key={`${post.id}-${category}`}
+                  key={category.id}
                   className="text-[#4c6ef5] border border-[#4c6ef5] px-2 py-1 text-[12px] rounded"
                 >
-                  {category}
+                  {category.name}
                 </span>
               ))}
             </div>
