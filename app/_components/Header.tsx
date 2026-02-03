@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import GuestHeader from "./GuestHeader";
-import AdminHeader from "../admin/_components/AdminHeader";
+import AdminHeader from "@/app/_components/AdminHeader";
 
 export default function Header() {
   const pathname = usePathname();

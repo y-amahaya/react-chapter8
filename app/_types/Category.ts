@@ -12,3 +12,11 @@ export type CategoriesIndexResponse = {
 export type CreateCategoryRequestBody = {
   name: string;
 };
+
+export type CategoryShowResponse = {
+  category: Category;
+};
+
+export type UpdateCategoryRequestBody = {
+  name: string;
+};

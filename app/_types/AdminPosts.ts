@@ -1,8 +1,7 @@
+import type { Category } from "@/app/_types/Category";
+
 export type AdminPostCategory = {
-  category: {
-    id: number;
-    name: string;
-  };
+  category: Pick<Category, "id" | "name">;
 };
 
 export type AdminPost = {
@@ -17,4 +16,18 @@ export type AdminPost = {
 
 export type AdminPostsIndexResponse = {
   posts: AdminPost[];
+};
+
+export type PostShowResponse = {
+  post: {
+    id: number;
+    title: string;
+    content: string;
+    thumbnailUrl: string;
+    createdAt: string;
+    updatedAt: string;
+    postCategories: {
+      category: Category;
+    }[];
+  };
 };

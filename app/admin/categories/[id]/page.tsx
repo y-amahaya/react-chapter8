@@ -2,21 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-
-type Category = {
-  id: number;
-  name: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type CategoryShowResponse = {
-  category: Category;
-};
-
-type UpdateCategoryRequestBody = {
-  name: string;
-};
+import type { CategoryShowResponse, UpdateCategoryRequestBody } from "@/app/_types/Category";
+import CategoryForm from "../_components/CategoryForm";
 
 export default function AdminCategoryEditPage() {
   const router = useRouter();
@@ -122,85 +109,23 @@ export default function AdminCategoryEditPage() {
 
   if (isLoading) {
     return (
-      <div style={{ padding: "24px 32px" }}>
-        <p style={{ margin: 0 }}>読み込み中...</p>
+      <div className="px-8 py-6">
+        <p className="m-0">読み込み中...</p>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: "24px 32px" }}>
-      <h1 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 24px" }}>
-        カテゴリー編集
-      </h1>
-
-      <div style={{ maxWidth: 720 }}>
-        <label
-          htmlFor="category-name"
-          style={{ display: "block", fontSize: 14, color: "#374151", marginBottom: 8 }}
-        >
-          カテゴリー名
-        </label>
-
-        <input
-          id="category-name"
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          style={{
-            width: "100%",
-            height: 44,
-            padding: "0 12px",
-            borderRadius: 6,
-            border: "1px solid #d1d5db",
-            outline: "none",
-          }}
-        />
-
-        {errorMessage && (
-          <p style={{ marginTop: 10, marginBottom: 0, color: "crimson", fontSize: 14 }}>
-            {errorMessage}
-          </p>
-        )}
-
-        <div style={{ display: "flex", gap: 12, marginTop: 18 }}>
-          <button
-            type="button"
-            onClick={onUpdate}
-            disabled={isUpdating || isDeleting}
-            style={{
-              height: 40,
-              padding: "0 18px",
-              borderRadius: 6,
-              border: "none",
-              background: isUpdating ? "#4b5563" : "#4f46e5",
-              color: "#fff",
-              fontWeight: 700,
-              cursor: isUpdating || isDeleting ? "not-allowed" : "pointer",
-            }}
-          >
-            {isUpdating ? "更新中..." : "更新"}
-          </button>
-
-          <button
-            type="button"
-            onClick={onDelete}
-            disabled={isUpdating || isDeleting}
-            style={{
-              height: 40,
-              padding: "0 18px",
-              borderRadius: 6,
-              border: "none",
-              background: isDeleting ? "#4b5563" : "#dc2626",
-              color: "#fff",
-              fontWeight: 700,
-              cursor: isUpdating || isDeleting ? "not-allowed" : "pointer",
-            }}
-          >
-            {isDeleting ? "削除中..." : "削除"}
-          </button>
-        </div>
-      </div>
-    </div>
+    <CategoryForm
+      title="カテゴリー編集"
+      name={name}
+      onChangeName={setName}
+      errorMessage={errorMessage}
+      onUpdate={onUpdate}
+      onDelete={onDelete}
+      isUpdating={isUpdating}
+      isDeleting={isDeleting}
+      syncNameFromProps={true}
+    />
   );
 }

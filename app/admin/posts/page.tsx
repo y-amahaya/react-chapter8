@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { AdminPostsIndexResponse } from "../../_types/AdminPosts";
+import { AdminPostsIndexResponse } from "../../_types/AdminPosts";
 
 export default function PostsPage() {
   const [posts, setPosts] = useState<AdminPostsIndexResponse["posts"]>([]);

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import AdminHeader from "./_components/AdminHeader";
+import AdminHeader from "@/app/_components/AdminHeader";
 import AdminSidebar from "./_components/AdminSidebar";
 
 export default function AdminLayout({
