@@ -1,8 +1,8 @@
 "use client";
 
-import type { Category } from "@/app/_types/Category";
+import type { AdminPostCategory } from "@/app/_types/AdminPosts";
 
-type CategoryOption = Pick<Category, "id" | "name">;
+type CategoryOption = AdminPostCategory["category"];
 
 type Props = {
   title: string;

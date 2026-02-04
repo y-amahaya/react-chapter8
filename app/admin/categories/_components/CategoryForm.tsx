@@ -63,11 +63,9 @@ export default function CategoryForm(props: Props) {
         value={value}
         onChange={(e) => handleChange(e.target.value)}
         disabled={disabled}
-        className={[
-          "w-full h-11 px-3 rounded-md border border-gray-300 outline-none",
-          disabled ? "bg-gray-100 cursor-not-allowed" : "bg-white",
-          "focus:border-gray-400",
-        ].join(" ")}
+        className={`w-full h-11 px-3 rounded-md border border-gray-300 outline-none       focus:border-gray-400 ${
+          disabled ? "bg-gray-100 cursor-not-allowed" : "bg-white"
+        }`}
       />
 
       {errorMessage && (
