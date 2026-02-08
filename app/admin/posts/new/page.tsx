@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Category, CategoriesIndexResponse } from "@/app/_types/Category";
 import PostForm from "@/app/admin/_components/PostForm";
+import { useSupabaseSession } from "@/app/_hooks/useSupabaseSession";
+import { supabase } from "@/app/_libs/supabase";
+import { v4 as uuidv4 } from "uuid";
 
 type CategoryOption = Pick<Category, "id" | "name">;
 
@@ -12,7 +15,7 @@ export default function AdminPostNewPage() {
 
   const [postTitle, setPostTitle] = useState("");
   const [content, setContent] = useState("");
-  const [thumbnailUrl, setThumbnailUrl] = useState("https://placehold.jp/800x400.png");
+  const [thumbnailImageKey, setThumbnailImageKey] = useState<string>("");
 
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | "">("");
@@ -20,14 +23,24 @@ export default function AdminPostNewPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const { token } = useSupabaseSession();
+
   useEffect(() => {
+    if (!token) return;
+
     const fetchCategories = async () => {
       try {
-        const res = await fetch("/api/admin/categories", { cache: "no-store" });
+        const res = await fetch("/api/admin/categories", {
+          cache: "no-store",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token,
+          },
+        });
+
         if (!res.ok) throw new Error(`Failed to fetch categories: ${res.status}`);
 
         const data: CategoriesIndexResponse = await res.json();
-
         setCategories((data.categories ?? []).map(({ id, name }) => ({ id, name })));
       } catch (e) {
         setErrorMessage(e instanceof Error ? e.message : "カテゴリー取得に失敗しました。");
@@ -35,7 +48,27 @@ export default function AdminPostNewPage() {
     };
 
     fetchCategories();
-  }, []);
+    }, [token]);
+
+  const onChangeThumbnailFile = async (file: File | null) => {
+    if (!file) return;
+
+    const filePath = `private/${uuidv4()}`;
+
+    const { data, error } = await supabase.storage
+      .from("post_thumbnail")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setThumbnailImageKey(data.path);
+  };
 
   const onSubmit = async () => {
     setIsSubmitting(true);
@@ -45,13 +78,16 @@ export default function AdminPostNewPage() {
       const body = {
         title: postTitle,
         content,
-        thumbnailUrl,
+        thumbnailImageKey,
         categories: selectedCategoryId === "" ? [] : [{ id: selectedCategoryId }],
       };
 
       const res = await fetch("/api/admin/posts", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: token } : {}),
+        },
         body: JSON.stringify(body),
       });
 
@@ -79,14 +115,14 @@ export default function AdminPostNewPage() {
       onChangePostTitle={setPostTitle}
       content={content}
       onChangeContent={setContent}
-      thumbnailUrl={thumbnailUrl}
-      onChangeThumbnailUrl={setThumbnailUrl}
+      onChangeThumbnailFile={onChangeThumbnailFile}
       categories={categories}
       selectedCategoryId={selectedCategoryId}
       onChangeSelectedCategoryId={setSelectedCategoryId}
       errorMessage={errorMessage}
       isSubmitting={isSubmitting}
       onSubmit={onSubmit}
+      thumbnailImageKey={thumbnailImageKey}
     />
   );
 }

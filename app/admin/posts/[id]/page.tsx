@@ -5,6 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { PostShowResponse } from "@/app/_types/AdminPosts";
 import { Category, CategoriesIndexResponse } from "@/app/_types/Category";
 import PostForm from "@/app/admin/_components/PostForm";
+import { useSupabaseSession } from "@/app/_hooks/useSupabaseSession";
+import { supabase } from "@/app/_libs/supabase";
+import { v4 as uuidv4 } from "uuid";
 
 type CategoryOption = Pick<Category, "id" | "name">;
 
@@ -15,7 +18,7 @@ export default function AdminPostEditPage() {
 
   const [postTitle, setPostTitle] = useState("");
   const [content, setContent] = useState("");
-  const [thumbnailUrl, setThumbnailUrl] = useState("https://placehold.jp/800x400.png");
+  const [thumbnailImageKey, setThumbnailImageKey] = useState<string>("");
 
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | "">("");
@@ -25,7 +28,11 @@ export default function AdminPostEditPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const { token } = useSupabaseSession();
+
   useEffect(() => {
+    if (!token) return;
+
     if (!postId || Number.isNaN(postId)) {
       setErrorMessage("URLのidが不正です。");
       setIsLoading(false);
@@ -37,12 +44,24 @@ export default function AdminPostEditPage() {
       setErrorMessage(null);
 
       try {
-        const catRes = await fetch("/api/admin/categories", { cache: "no-store" });
+        const catRes = await fetch("/api/admin/categories", {
+          cache: "no-store",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: token } : {}),
+          },
+        });
         if (!catRes.ok) throw new Error(`Failed to fetch categories: ${catRes.status}`);
         const catData: CategoriesIndexResponse = await catRes.json();
         setCategories((catData.categories ?? []).map(({ id, name }) => ({ id, name })));
 
-        const postRes = await fetch(`/api/admin/posts/${postId}`, { cache: "no-store" });
+        const postRes = await fetch(`/api/admin/posts/${postId}`, {
+          cache: "no-store",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: token } : {}),
+          },
+        });
         if (!postRes.ok) {
           const d = await postRes.json().catch(() => null);
           throw new Error(d?.message ?? `Failed to fetch post: ${postRes.status}`);
@@ -53,7 +72,7 @@ export default function AdminPostEditPage() {
 
         setPostTitle(post.title ?? "");
         setContent(post.content ?? "");
-        setThumbnailUrl(post.thumbnailUrl ?? "https://placehold.jp/800x400.png");
+        setThumbnailImageKey(post.thumbnailImageKey ?? "");
 
         const first = post.postCategories?.[0]?.category?.id;
         setSelectedCategoryId(typeof first === "number" ? first : "");
@@ -65,7 +84,27 @@ export default function AdminPostEditPage() {
     };
 
     fetchAll();
-  }, [postId]);
+  }, [postId, token]);
+
+  const onChangeThumbnailFile = async (file: File | null) => {
+    if (!file) return;
+
+    const filePath = `private/${uuidv4()}`;
+
+    const { data, error } = await supabase.storage
+      .from("post_thumbnail")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setThumbnailImageKey(data.path);
+  };
 
   const onSubmit = async () => {
     if (!postId || Number.isNaN(postId)) return;
@@ -77,13 +116,16 @@ export default function AdminPostEditPage() {
       const body = {
         title: postTitle,
         content,
-        thumbnailUrl,
+        thumbnailImageKey,
         categories: selectedCategoryId === "" ? [] : [{ id: selectedCategoryId }],
       };
 
       const res = await fetch(`/api/admin/posts/${postId}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: token } : {}),
+        },
         body: JSON.stringify(body),
       });
 
@@ -112,7 +154,14 @@ export default function AdminPostEditPage() {
     setErrorMessage(null);
 
     try {
-      const res = await fetch(`/api/admin/posts/${postId}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/posts/${postId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: token } : {}),
+        },
+      });
+
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         const msg = data?.message ?? `削除に失敗しました (status: ${res.status})`;
@@ -145,8 +194,7 @@ export default function AdminPostEditPage() {
       onChangePostTitle={setPostTitle}
       content={content}
       onChangeContent={setContent}
-      thumbnailUrl={thumbnailUrl}
-      onChangeThumbnailUrl={setThumbnailUrl}
+      onChangeThumbnailFile={onChangeThumbnailFile}
       categories={categories}
       selectedCategoryId={selectedCategoryId}
       onChangeSelectedCategoryId={setSelectedCategoryId}
@@ -155,6 +203,7 @@ export default function AdminPostEditPage() {
       onSubmit={onSubmit}
       onDelete={onDelete}
       isDeleting={isDeleting}
+      thumbnailImageKey={thumbnailImageKey}
     />
   );
 }

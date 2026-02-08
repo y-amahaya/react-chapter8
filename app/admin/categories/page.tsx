@@ -3,13 +3,18 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { CategoriesIndexResponse, Category } from "@/app/_types/Category";
+import { useSupabaseSession } from "@/app/_hooks/useSupabaseSession";
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const { token } = useSupabaseSession();
+
   useEffect(() => {
+    if (!token) return;
+
     const run = async () => {
       try {
         setIsLoading(true);
@@ -18,6 +23,10 @@ export default function AdminCategoriesPage() {
         const res = await fetch("/api/admin/categories", {
           method: "GET",
           cache: "no-store",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: token } : {}),
+          },
         });
 
         if (!res.ok) {
@@ -34,7 +43,7 @@ export default function AdminCategoriesPage() {
     };
 
     run();
-  }, []);
+  }, [token]);
 
   return (
     <div style={{ padding: "24px 32px" }}>

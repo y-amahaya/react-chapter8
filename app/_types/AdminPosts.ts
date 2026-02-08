@@ -8,7 +8,7 @@ export type AdminPost = {
   id: number;
   title: string;
   content: string;
-  thumbnailUrl: string;
+  thumbnailImageKey : string;
   createdAt: string;
   updatedAt: string;
   postCategories: AdminPostCategory[];
@@ -23,7 +23,7 @@ export type PostShowResponse = {
     id: number;
     title: string;
     content: string;
-    thumbnailUrl: string;
+    thumbnailImageKey: string;
     createdAt: string;
     updatedAt: string;
     postCategories: {

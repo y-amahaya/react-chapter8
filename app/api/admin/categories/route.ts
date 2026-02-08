@@ -1,5 +1,6 @@
 import { prisma } from '@/app/_libs/prisma'
-import { NextResponse } from 'next/server'
+import { supabase } from "@/app/_libs/supabase";
+import { NextRequest, NextResponse } from "next/server";
 
 export type CategoriesIndexResponse = {
   categories: {
@@ -18,7 +19,21 @@ export type CreateCategoryResponse = {
   id: number
 }
 
-export const GET = async () => {
+const authorize = async (request: NextRequest) => {
+  const token = request.headers.get("Authorization") ?? "";
+  const { error } = await supabase.auth.getUser(token);
+
+  if (error) {
+    return NextResponse.json({ status: error.message }, { status: 400 });
+  }
+
+  return null;
+};
+
+export const GET = async (request: NextRequest) => {
+  const unauthorized = await authorize(request);
+  if (unauthorized) return unauthorized;
+
   try {
     const categories = await prisma.category.findMany({
       orderBy: {
@@ -37,7 +52,10 @@ export const GET = async () => {
   }
 }
 
-export const POST = async (request: Request) => {
+export const POST = async (request: NextRequest) => {
+  const unauthorized = await authorize(request);
+  if (unauthorized) return unauthorized;
+
   try {
     const body: CreateCategoryRequestBody = await request.json()
     const { name } = body

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { CategoryShowResponse, UpdateCategoryRequestBody } from "@/app/_types/Category";
 import CategoryForm from "../_components/CategoryForm";
+import { useSupabaseSession } from "@/app/_hooks/useSupabaseSession";
 
 export default function AdminCategoryEditPage() {
   const router = useRouter();
@@ -16,7 +17,10 @@ export default function AdminCategoryEditPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const { token } = useSupabaseSession();
+
   useEffect(() => {
+    if (!token) return;
     if (!Number.isFinite(categoryId)) return;
 
     const run = async () => {
@@ -27,6 +31,10 @@ export default function AdminCategoryEditPage() {
         const res = await fetch(`/api/admin/categories/${categoryId}`, {
           method: "GET",
           cache: "no-store",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: token } : {}),
+          },
         });
 
         if (!res.ok) {
@@ -45,7 +53,7 @@ export default function AdminCategoryEditPage() {
     };
 
     run();
-  }, [categoryId]);
+  }, [categoryId, token]);
 
   const onUpdate = async () => {
     const trimmed = name.trim();
@@ -62,7 +70,10 @@ export default function AdminCategoryEditPage() {
 
       const res = await fetch(`/api/admin/categories/${categoryId}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: token } : {}),
+        },
         body: JSON.stringify(body),
       });
 
@@ -90,6 +101,10 @@ export default function AdminCategoryEditPage() {
 
       const res = await fetch(`/api/admin/categories/${categoryId}`, {
         method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: token } : {}),
+        },
       });
 
       if (!res.ok) {

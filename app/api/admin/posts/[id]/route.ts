@@ -1,4 +1,5 @@
 import { prisma } from '@/app/_libs/prisma'
+import { supabase } from "@/app/_libs/supabase";
 import { NextRequest, NextResponse } from 'next/server'
 
 export type Category = {
@@ -11,7 +12,7 @@ export type PostShowResponse = {
     id: number
     title: string
     content: string
-    thumbnailUrl: string
+    thumbnailImageKey: string
     createdAt: Date
     updatedAt: Date
     postCategories: {
@@ -24,13 +25,28 @@ export type UpdatePostRequestBody = {
   title: string
   content: string
   categories: { id: number }[]
-  thumbnailUrl: string
+  thumbnailImageKey: string
 }
 
+const authorize = async (request: NextRequest) => {
+  const token = request.headers.get("Authorization") ?? "";
+  const { error } = await supabase.auth.getUser(token);
+
+  if (error) {
+    return NextResponse.json({ status: error.message }, { status: 400 });
+  }
+
+  return null;
+};
+
 export const GET = async (
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) => {
+
+  const unauthorized = await authorize(request);
+  if (unauthorized) return unauthorized;
+
   const { id } = await params
 
   try {
@@ -66,15 +82,19 @@ export const PUT = async (
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) => {
+
+  const unauthorized = await authorize(request);
+  if (unauthorized) return unauthorized;
+
   const { id } = await params
 
-  const { title, content, categories, thumbnailUrl }: UpdatePostRequestBody =
+  const { title, content, categories, thumbnailImageKey }: UpdatePostRequestBody =
     await request.json()
 
   try {
     const post = await prisma.post.update({
       where: { id: parseInt(id) },
-      data: { title, content, thumbnailUrl },
+      data: { title, content, thumbnailImageKey },
     })
 
     await prisma.postCategory.deleteMany({
@@ -99,9 +119,13 @@ export const PUT = async (
 }
 
 export const DELETE = async (
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) => {
+
+  const unauthorized = await authorize(request);
+  if (unauthorized) return unauthorized;
+
   const { id } = await params
 
   try {
