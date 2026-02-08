@@ -1,5 +1,5 @@
 import { prisma } from '@/app/_libs/prisma'
-import { supabase } from "@/app/_libs/supabase";
+import { authorize } from "@/app/_libs/authorize";
 import { NextRequest, NextResponse } from 'next/server'
 
 const parseId = async (params: Promise<{ id: string }>) => {
@@ -15,17 +15,6 @@ export type CategoryShowResponse = {
     updatedAt: Date
   }
 }
-
-const authorize = async (request: NextRequest) => {
-  const token = request.headers.get("Authorization") ?? "";
-  const { error } = await supabase.auth.getUser(token);
-
-  if (error) {
-    return NextResponse.json({ status: error.message }, { status: 400 });
-  }
-
-  return null;
-};
 
 export const GET = async (
   request: NextRequest,

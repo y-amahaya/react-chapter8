@@ -48,7 +48,7 @@ export default function AdminPostEditPage() {
           cache: "no-store",
           headers: {
             "Content-Type": "application/json",
-            ...(token ? { Authorization: token } : {}),
+            Authorization: token,
           },
         });
         if (!catRes.ok) throw new Error(`Failed to fetch categories: ${catRes.status}`);
@@ -59,7 +59,7 @@ export default function AdminPostEditPage() {
           cache: "no-store",
           headers: {
             "Content-Type": "application/json",
-            ...(token ? { Authorization: token } : {}),
+            Authorization: token,
           },
         });
         if (!postRes.ok) {
@@ -109,6 +109,8 @@ export default function AdminPostEditPage() {
   const onSubmit = async () => {
     if (!postId || Number.isNaN(postId)) return;
 
+    if (!token) return;
+
     setIsSubmitting(true);
     setErrorMessage(null);
 
@@ -124,7 +126,7 @@ export default function AdminPostEditPage() {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: token } : {}),
+          Authorization: token,
         },
         body: JSON.stringify(body),
       });
@@ -147,6 +149,8 @@ export default function AdminPostEditPage() {
   const onDelete = async () => {
     if (!postId || Number.isNaN(postId)) return;
 
+    if (!token) return;
+
     const ok = window.confirm("この記事を削除しますか？");
     if (!ok) return;
 
@@ -158,7 +162,7 @@ export default function AdminPostEditPage() {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: token } : {}),
+          Authorization: token,
         },
       });
 

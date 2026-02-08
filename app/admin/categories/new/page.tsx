@@ -22,6 +22,8 @@ export default function AdminCategoryNewPage() {
       return;
     }
 
+    if (!token) return;
+
     try {
       setIsSubmitting(true);
       setErrorMessage(null);
@@ -32,7 +34,7 @@ export default function AdminCategoryNewPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: token } : {}),
+          Authorization: token,
         },
         body: JSON.stringify(body),
       });

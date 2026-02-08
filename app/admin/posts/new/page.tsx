@@ -82,11 +82,13 @@ export default function AdminPostNewPage() {
         categories: selectedCategoryId === "" ? [] : [{ id: selectedCategoryId }],
       };
 
+      if (!token) return;
+
       const res = await fetch("/api/admin/posts", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: token } : {}),
+          Authorization: token,
         },
         body: JSON.stringify(body),
       });

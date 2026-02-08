@@ -25,7 +25,7 @@ export default function AdminCategoriesPage() {
           cache: "no-store",
           headers: {
             "Content-Type": "application/json",
-            ...(token ? { Authorization: token } : {}),
+            Authorization: token,
           },
         });
 

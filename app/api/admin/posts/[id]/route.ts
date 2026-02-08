@@ -1,5 +1,5 @@
 import { prisma } from '@/app/_libs/prisma'
-import { supabase } from "@/app/_libs/supabase";
+import { authorize } from "@/app/_libs/authorize";
 import { NextRequest, NextResponse } from 'next/server'
 
 export type Category = {
@@ -27,17 +27,6 @@ export type UpdatePostRequestBody = {
   categories: { id: number }[]
   thumbnailImageKey: string
 }
-
-const authorize = async (request: NextRequest) => {
-  const token = request.headers.get("Authorization") ?? "";
-  const { error } = await supabase.auth.getUser(token);
-
-  if (error) {
-    return NextResponse.json({ status: error.message }, { status: 400 });
-  }
-
-  return null;
-};
 
 export const GET = async (
   request: NextRequest,

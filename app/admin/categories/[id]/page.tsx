@@ -33,7 +33,7 @@ export default function AdminCategoryEditPage() {
           cache: "no-store",
           headers: {
             "Content-Type": "application/json",
-            ...(token ? { Authorization: token } : {}),
+            Authorization: token,
           },
         });
 
@@ -62,6 +62,8 @@ export default function AdminCategoryEditPage() {
       return;
     }
 
+    if (!token) return;
+
     try {
       setIsUpdating(true);
       setErrorMessage(null);
@@ -72,7 +74,7 @@ export default function AdminCategoryEditPage() {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: token } : {}),
+          Authorization: token,
         },
         body: JSON.stringify(body),
       });
@@ -95,6 +97,8 @@ export default function AdminCategoryEditPage() {
     const ok = window.confirm("このカテゴリーを削除しますか？");
     if (!ok) return;
 
+    if (!token) return;
+
     try {
       setIsDeleting(true);
       setErrorMessage(null);
@@ -103,7 +107,7 @@ export default function AdminCategoryEditPage() {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: token } : {}),
+          Authorization: token,
         },
       });
 
