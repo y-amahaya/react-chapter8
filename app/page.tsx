@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import useSWR from "swr";
 import Link from "next/link";
 import type { PostsIndexResponse } from "@/app/api/posts/route";
 
@@ -10,43 +10,30 @@ type ClientPost = Omit<PostsIndexResponse["posts"][number], "createdAt" | "updat
 };
 
 export default function PostsPage() {
-  const [posts, setPosts] = useState<ClientPost[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const fetcher = async (url: string) => {
+  const res = await fetch(url, { cache: "no-store" });
 
-  useEffect(() => {
-    const fetcher = async () => {
-      setIsLoading(true);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch posts: ${res.status}`);
+    }
 
-      try {
-        const res = await fetch("/api/posts", { cache: "no-store" });
+    const data: PostsIndexResponse = await res.json();
+    return data.posts as unknown as ClientPost[];
+  };
 
-        if (!res.ok) {
-          throw new Error(`Failed to fetch posts: ${res.status}`);
-        }
+  const { data: posts, error, isLoading } = useSWR<ClientPost[]>("/api/posts", fetcher);
 
-        const data: PostsIndexResponse = await res.json();
-        setPosts(data.posts as unknown as ClientPost[]);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetcher();
-  }, []);
-
-  if (isLoading) {
-    return (
-      <main className="max-w-[900px] p-4 mx-auto">
-        <p>読み込み中...</p>
-      </main>
-    );
-  }
+    if (isLoading) {
+      return (
+        <main className="max-w-[900px] p-4 mx-auto">
+          <p>読み込み中...</p>
+        </main>
+      );
+    }
 
   return (
     <main className="max-w-[900px] p-4 mx-auto">
-      {posts.map((post) => (
+      {(posts ?? []).map((post) => (
         <Link
           key={post.id}
           href={`/posts/${post.id}`}
