@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import { supabase } from "@/app/_libs/supabase";
 import type { AdminPostCategory } from "@/app/_types/AdminPosts";
 
 type CategoryOption = AdminPostCategory["category"];
@@ -16,8 +19,9 @@ type Props = {
   content: string;
   onChangeContent: (v: string) => void;
 
-  thumbnailUrl: string;
-  onChangeThumbnailUrl: (v: string) => void;
+  thumbnailImageKey: string;
+
+  onChangeThumbnailFile: (file: File | null) => void;
 
   categories: CategoryOption[];
   selectedCategoryId: number | "";
@@ -42,8 +46,11 @@ export default function PostForm({
   onChangePostTitle,
   content,
   onChangeContent,
-  thumbnailUrl,
-  onChangeThumbnailUrl,
+
+  thumbnailImageKey,
+
+  onChangeThumbnailFile,
+
   categories,
   selectedCategoryId,
   onChangeSelectedCategoryId,
@@ -59,6 +66,30 @@ export default function PostForm({
     selectedCategoryId === ""
       ? ""
       : categories.find((c) => c.id === selectedCategoryId)?.name ?? "";
+
+  const [thumbnailImageUrl, setThumbnailImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!thumbnailImageKey) {
+      setThumbnailImageUrl(null);
+      return;
+    }
+
+    const fetcher = async () => {
+      const {
+        data: { publicUrl },
+      } = await supabase.storage.from("post_thumbnail").getPublicUrl(thumbnailImageKey);
+
+      setThumbnailImageUrl(publicUrl);
+    };
+
+    fetcher();
+  }, [thumbnailImageKey]);
+
+  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    onChangeThumbnailFile(file);
+  };
 
   return (
     <div className="max-w-[900px] p-4 mx-auto">
@@ -84,7 +115,6 @@ export default function PostForm({
             className="w-full rounded border border-gray-200 px-3 py-2 outline-none focus:border-gray-400"
             value={postTitle}
             onChange={(e) => onChangePostTitle(e.target.value)}
-            placeholder=""
           />
         </div>
 
@@ -95,26 +125,35 @@ export default function PostForm({
             className="w-full min-h-[120px] rounded border border-gray-200 px-3 py-2 outline-none focus:border-gray-400"
             value={content}
             onChange={(e) => onChangeContent(e.target.value)}
-            placeholder=""
           />
         </div>
 
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">サムネイルURL</label>
+          <label
+            htmlFor="thumbnailImageKey"
+            className="block text-sm font-medium text-gray-700"
+          >
+            サムネイルURL
+          </label>
+
           <input
             disabled={disabled}
-            className="w-full rounded border border-gray-200 px-3 py-2 outline-none focus:border-gray-400"
-            value={thumbnailUrl}
-            onChange={(e) => onChangeThumbnailUrl(e.target.value)}
-            placeholder="https://placehold.jp/800x400.png"
+            type="file"
+            id="thumbnailImageKey"
+            onChange={handleImageChange}
+            accept="image/*"
+            className="w-full rounded border border-gray-200 px-3 py-2 outline-none focus:border-gray-400 bg-white"
           />
 
-          {thumbnailUrl && (
-            <img
-              src={thumbnailUrl}
-              alt="thumbnail preview"
-              className="mt-3 max-w-full rounded border border-gray-200"
-            />
+          {thumbnailImageUrl && (
+            <div className="mt-2">
+              <Image
+                src={thumbnailImageUrl}
+                alt="thumbnail"
+                width={400}
+                height={400}
+              />
+            </div>
           )}
         </div>
 
@@ -150,7 +189,7 @@ export default function PostForm({
           <button
             type="submit"
             disabled={disabled}
-            className="inline-flex items-center justify-center rounded bg-indigo-600 px-5 py-2 text-sm           font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+            className="inline-flex items-center justify-center rounded bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
           >
             {isSubmitting ? submittingLabel : submitLabel}
           </button>

@@ -3,22 +3,32 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AdminPostsIndexResponse } from "../../_types/AdminPosts";
+import { useSupabaseSession } from "../../_hooks/useSupabaseSession";
 
 export default function PostsPage() {
   const [posts, setPosts] = useState<AdminPostsIndexResponse["posts"]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const { token } = useSupabaseSession();
+
   useEffect(() => {
+    if (!token) return;
+
     const fetcher = async () => {
       try {
-        const res = await fetch("/api/admin/posts");
+        const res = await fetch("/api/admin/posts", {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token,
+          },
+        });
 
         if (!res.ok) {
           throw new Error(`Failed to fetch: ${res.status}`);
         }
 
         const data: AdminPostsIndexResponse = await res.json();
-        setPosts(data.posts);
+        setPosts([...data.posts]);
       } catch (e) {
         console.error(e);
       } finally {
@@ -27,7 +37,7 @@ export default function PostsPage() {
     };
 
     fetcher();
-  }, []);
+  }, [token]);
 
   if (isLoading) {
     return (

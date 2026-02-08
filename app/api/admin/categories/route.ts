@@ -1,5 +1,6 @@
 import { prisma } from '@/app/_libs/prisma'
-import { NextResponse } from 'next/server'
+import { authorize } from "@/app/_libs/authorize";
+import { NextRequest, NextResponse } from "next/server";
 
 export type CategoriesIndexResponse = {
   categories: {
@@ -18,7 +19,10 @@ export type CreateCategoryResponse = {
   id: number
 }
 
-export const GET = async () => {
+export const GET = async (request: NextRequest) => {
+  const unauthorized = await authorize(request);
+  if (unauthorized) return unauthorized;
+
   try {
     const categories = await prisma.category.findMany({
       orderBy: {
@@ -37,7 +41,10 @@ export const GET = async () => {
   }
 }
 
-export const POST = async (request: Request) => {
+export const POST = async (request: NextRequest) => {
+  const unauthorized = await authorize(request);
+  if (unauthorized) return unauthorized;
+
   try {
     const body: CreateCategoryRequestBody = await request.json()
     const { name } = body

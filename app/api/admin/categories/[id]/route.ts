@@ -1,4 +1,5 @@
 import { prisma } from '@/app/_libs/prisma'
+import { authorize } from "@/app/_libs/authorize";
 import { NextRequest, NextResponse } from 'next/server'
 
 const parseId = async (params: Promise<{ id: string }>) => {
@@ -16,9 +17,13 @@ export type CategoryShowResponse = {
 }
 
 export const GET = async (
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) => {
+
+  const unauthorized = await authorize(request);
+  if (unauthorized) return unauthorized;
+
   try {
     const id = await parseId(params)
 
@@ -52,6 +57,10 @@ export const PUT = async (
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) => {
+
+  const unauthorized = await authorize(request);
+  if (unauthorized) return unauthorized;
+
   try {
     const id = await parseId(params)
     const { name }: UpdateCategoryRequestBody = await request.json()
@@ -70,9 +79,13 @@ export const PUT = async (
 }
 
 export const DELETE = async (
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) => {
+
+  const unauthorized = await authorize(request);
+  if (unauthorized) return unauthorized;
+
   try {
     const id = await parseId(params)
 
