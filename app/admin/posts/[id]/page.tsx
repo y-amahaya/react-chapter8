@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import useSWR from "swr";
+import useSWRMutation from "swr/mutation";
+
 import { PostShowResponse } from "@/app/_types/AdminPosts";
 import { Category, CategoriesIndexResponse } from "@/app/_types/Category";
 import PostForm from "@/app/admin/_components/PostForm";
@@ -11,80 +15,94 @@ import { v4 as uuidv4 } from "uuid";
 
 type CategoryOption = Pick<Category, "id" | "name">;
 
+type FormValues = {
+  postTitle: string;
+  content: string;
+};
+
 export default function AdminPostEditPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
+
   const postId = useMemo(() => Number(params?.id), [params]);
+  const isInvalidId = !postId || Number.isNaN(postId);
 
-  const [postTitle, setPostTitle] = useState("");
-  const [content, setContent] = useState("");
+  const { watch, setValue } = useForm<FormValues>({
+    defaultValues: { postTitle: "", content: "" },
+  });
+
+  const postTitle = watch("postTitle");
+  const content = watch("content");
+
+  const setPostTitle = (v: string) => setValue("postTitle", v);
+  const setContent = (v: string) => setValue("content", v);
+
   const [thumbnailImageKey, setThumbnailImageKey] = useState<string>("");
-
-  const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | "">("");
-
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const { token } = useSupabaseSession();
 
-  useEffect(() => {
-    if (!token) return;
+  const fetchCategories = async ([url, token]: [string, string]) => {
+    const res = await fetch(url, {
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token,
+      },
+    });
 
-    if (!postId || Number.isNaN(postId)) {
-      setErrorMessage("URLのidが不正です。");
-      setIsLoading(false);
-      return;
+    if (!res.ok) throw new Error(`Failed to fetch categories: ${res.status}`);
+
+    const data: CategoriesIndexResponse = await res.json();
+    return (data.categories ?? []).map(({ id, name }) => ({ id, name }));
+  };
+
+  const {
+    data: categories = [],
+    error: categoriesError,
+    isLoading: isCategoriesLoading,
+  } = useSWR<CategoryOption[]>(
+    token ? ["/api/admin/categories", token] : null,
+    fetchCategories
+  );
+
+  const fetchPost = async ([url, token]: [string, string]) => {
+    const res = await fetch(url, {
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token,
+      },
+    });
+
+    if (!res.ok) {
+      const d = await res.json().catch(() => null);
+      throw new Error(d?.message ?? `Failed to fetch post: ${res.status}`);
     }
 
-    const fetchAll = async () => {
-      setIsLoading(true);
-      setErrorMessage(null);
+    const data: PostShowResponse = await res.json();
+    return data.post;
+  };
 
-      try {
-        const catRes = await fetch("/api/admin/categories", {
-          cache: "no-store",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: token,
-          },
-        });
-        if (!catRes.ok) throw new Error(`Failed to fetch categories: ${catRes.status}`);
-        const catData: CategoriesIndexResponse = await catRes.json();
-        setCategories((catData.categories ?? []).map(({ id, name }) => ({ id, name })));
+  const {
+    data: post,
+    error: postError,
+    isLoading: isPostLoading,
+  } = useSWR<PostShowResponse["post"]>(
+    token && !isInvalidId ? [`/api/admin/posts/${postId}`, token] : null,
+    fetchPost
+  );
 
-        const postRes = await fetch(`/api/admin/posts/${postId}`, {
-          cache: "no-store",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: token,
-          },
-        });
-        if (!postRes.ok) {
-          const d = await postRes.json().catch(() => null);
-          throw new Error(d?.message ?? `Failed to fetch post: ${postRes.status}`);
-        }
+  useEffect(() => {
+    if (!post) return;
 
-        const postData: PostShowResponse = await postRes.json();
-        const post = postData.post;
+    setValue("postTitle", post.title ?? "");
+    setValue("content", post.content ?? "");
+    setThumbnailImageKey(post.thumbnailImageKey ?? "");
 
-        setPostTitle(post.title ?? "");
-        setContent(post.content ?? "");
-        setThumbnailImageKey(post.thumbnailImageKey ?? "");
-
-        const first = post.postCategories?.[0]?.category?.id;
-        setSelectedCategoryId(typeof first === "number" ? first : "");
-      } catch (e) {
-        setErrorMessage(e instanceof Error ? e.message : "取得に失敗しました。");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchAll();
-  }, [postId, token]);
+    const first = post.postCategories?.[0]?.category?.id;
+    setSelectedCategoryId(typeof first === "number" ? first : "");
+  }, [post, setValue]);
 
   const onChangeThumbnailFile = async (file: File | null) => {
     if (!file) return;
@@ -106,80 +124,108 @@ export default function AdminPostEditPage() {
     setThumbnailImageKey(data.path);
   };
 
-  const onSubmit = async () => {
-    if (!postId || Number.isNaN(postId)) return;
+  const updatePost = async (
+    [url, token]: [string, string],
+    { arg }: { arg: any }
+  ) => {
+    const res = await fetch(url, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token,
+      },
+      body: JSON.stringify(arg),
+    });
 
-    if (!token) return;
-
-    setIsSubmitting(true);
-    setErrorMessage(null);
-
-    try {
-      const body = {
-        title: postTitle,
-        content,
-        thumbnailImageKey,
-        categories: selectedCategoryId === "" ? [] : [{ id: selectedCategoryId }],
-      };
-
-      const res = await fetch(`/api/admin/posts/${postId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token,
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        const msg = data?.message ?? `更新に失敗しました (status: ${res.status})`;
-        throw new Error(msg);
-      }
-
-      router.push("/admin/posts");
-      router.refresh();
-    } catch (e) {
-      setErrorMessage(e instanceof Error ? e.message : "更新に失敗しました。");
-    } finally {
-      setIsSubmitting(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      const msg = data?.message ?? `更新に失敗しました (status: ${res.status})`;
+      throw new Error(msg);
     }
   };
 
-  const onDelete = async () => {
-    if (!postId || Number.isNaN(postId)) return;
+  const {
+    trigger: updateTrigger,
+    isMutating: isSubmitting,
+    error: updateError,
+  } = useSWRMutation(
+    token && !isInvalidId ? [`/api/admin/posts/${postId}`, token] : null,
+    updatePost
+  );
 
+  const onSubmit = async () => {
+    if (isInvalidId) return;
+    if (!token) return;
+
+    const body = {
+      title: postTitle,
+      content,
+      thumbnailImageKey,
+      categories: selectedCategoryId === "" ? [] : [{ id: selectedCategoryId }],
+    };
+
+    try {
+      await updateTrigger(body);
+      router.push("/admin/posts");
+      router.refresh();
+    } catch {
+    }
+  };
+
+  const deletePost = async ([url, token]: [string, string]) => {
+    const res = await fetch(url, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token,
+      },
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      const msg = data?.message ?? `削除に失敗しました (status: ${res.status})`;
+      throw new Error(msg);
+    }
+  };
+
+  const {
+    trigger: deleteTrigger,
+    isMutating: isDeleting,
+    error: deleteError,
+  } = useSWRMutation(
+    token && !isInvalidId ? [`/api/admin/posts/${postId}`, token] : null,
+    deletePost
+  );
+
+  const onDelete = async () => {
+    if (isInvalidId) return;
     if (!token) return;
 
     const ok = window.confirm("この記事を削除しますか？");
     if (!ok) return;
 
-    setIsDeleting(true);
-    setErrorMessage(null);
-
     try {
-      const res = await fetch(`/api/admin/posts/${postId}`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token,
-        },
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        const msg = data?.message ?? `削除に失敗しました (status: ${res.status})`;
-        throw new Error(msg);
-      }
-
+      await deleteTrigger();
       router.push("/admin/posts");
       router.refresh();
-    } catch (e) {
-      setErrorMessage(e instanceof Error ? e.message : "削除に失敗しました。");
-    } finally {
-      setIsDeleting(false);
+    } catch {
     }
   };
+
+  const isLoading = !token || (!isInvalidId && (isCategoriesLoading || isPostLoading));
+
+  const errorMessage = useMemo(() => {
+    if (isInvalidId) return "URLのidが不正です。";
+    if (categoriesError instanceof Error) return categoriesError.message;
+    if (postError instanceof Error) return postError.message;
+    if (updateError instanceof Error) return updateError.message;
+    if (deleteError instanceof Error) return deleteError.message;
+    if (categoriesError) return "カテゴリー取得に失敗しました。";
+    if (postError) return "取得に失敗しました。";
+    if (updateError) return "更新に失敗しました。";
+    if (deleteError) return "削除に失敗しました。";
+    return null;
+  }, [isInvalidId, categoriesError, postError, updateError, deleteError]);
 
   if (isLoading) {
     return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import useSWR from "swr";
 import { useParams } from "next/navigation";
 import type { PostShowResponse } from "@/app/api/posts/[id]/route";
 import Image from "next/image";
@@ -8,25 +8,21 @@ import { supabase } from "@/app/_libs/supabase";
 
 type ClientPost = PostShowResponse["post"];
 
+const fetcher = async (url: string): Promise<PostShowResponse> => {
+  const res = await fetch(url, { cache: "no-store" });
+  return res.json();
+};
+
 export default function PostDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
 
-  const [post, setPost] = useState<ClientPost | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data, isLoading } = useSWR<PostShowResponse>(
+    id ? `/api/posts/${id}` : null,
+    fetcher
+  );
 
-useEffect(() => {
-  const fetcher = async () => {
-    setIsLoading(true);
-
-  const res = await fetch(`/api/posts/${id}`, { cache: "no-store" });
-  const data: PostShowResponse = await res.json();
-    setPost(data.post);
-    setIsLoading(false);
-  };
-
-  fetcher();
-}, [id]);
+  const post: ClientPost | null = data?.post ?? null;
 
   const thumbnailImageUrl =
     post?.thumbnailImageKey
@@ -35,26 +31,25 @@ useEffect(() => {
           .getPublicUrl(post.thumbnailImageKey).data.publicUrl
       : null;
 
-if (isLoading) {
-  return (
-    <main className="max-w-[900px] p-4 mx-auto">
-      <p>読み込み中...</p>
-    </main>
-  );
-}
+  if (isLoading) {
+    return (
+      <main className="max-w-[900px] p-4 mx-auto">
+        <p>読み込み中...</p>
+      </main>
+    );
+  }
 
-if (!post) {
-  return (
-    <main className="max-w-[900px] p-4 mx-auto">
-      <p>記事が見つかりませんでした</p>
-    </main>
-  );
-}
+  if (!post) {
+    return (
+      <main className="max-w-[900px] p-4 mx-auto">
+        <p>記事が見つかりませんでした</p>
+      </main>
+    );
+  }
 
   return (
     <main className="max-w-[900px] p-4 mx-auto">
       <div className="m-6 border border-[#ddd]">
-
         {thumbnailImageUrl && (
           <div className="w-full max-h-[400px] overflow-hidden">
             <Image

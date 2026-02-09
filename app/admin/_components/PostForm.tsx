@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Image from "next/image";
+import useSWR from "swr";
+import { useForm } from "react-hook-form";
 import { supabase } from "@/app/_libs/supabase";
 import type { AdminPostCategory } from "@/app/_types/AdminPosts";
 
@@ -20,7 +22,6 @@ type Props = {
   onChangeContent: (v: string) => void;
 
   thumbnailImageKey: string;
-
   onChangeThumbnailFile: (file: File | null) => void;
 
   categories: CategoryOption[];
@@ -36,9 +37,14 @@ type Props = {
   isDeleting?: boolean;
 };
 
+type FormValues = {
+  postTitle: string;
+  content: string;
+  selectedCategoryId: string;
+};
+
 export default function PostForm({
   title,
-
   submitLabel,
   submittingLabel = "送信中...",
 
@@ -48,12 +54,12 @@ export default function PostForm({
   onChangeContent,
 
   thumbnailImageKey,
-
   onChangeThumbnailFile,
 
   categories,
   selectedCategoryId,
   onChangeSelectedCategoryId,
+
   errorMessage,
   isSubmitting,
   onSubmit,
@@ -67,29 +73,31 @@ export default function PostForm({
       ? ""
       : categories.find((c) => c.id === selectedCategoryId)?.name ?? "";
 
-  const [thumbnailImageUrl, setThumbnailImageUrl] = useState<string | null>(null);
+  const { register, reset } = useForm<FormValues>({
+    defaultValues: {
+      postTitle,
+      content,
+      selectedCategoryId: selectedCategoryId === "" ? "" : String(selectedCategoryId),
+    },
+  });
 
   useEffect(() => {
-    if (!thumbnailImageKey) {
-      setThumbnailImageUrl(null);
-      return;
-    }
+    reset({
+      postTitle,
+      content,
+      selectedCategoryId: selectedCategoryId === "" ? "" : String(selectedCategoryId),
+    });
+  }, [postTitle, content, selectedCategoryId, reset]);
 
-    const fetcher = async () => {
+  const { data: thumbnailImageUrl } = useSWR(
+    thumbnailImageKey ? ["thumbnail", thumbnailImageKey] : null,
+    async ([_key, key]) => {
       const {
         data: { publicUrl },
-      } = await supabase.storage.from("post_thumbnail").getPublicUrl(thumbnailImageKey);
-
-      setThumbnailImageUrl(publicUrl);
-    };
-
-    fetcher();
-  }, [thumbnailImageKey]);
-
-  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null;
-    onChangeThumbnailFile(file);
-  };
+      } = await supabase.storage.from("post_thumbnail").getPublicUrl(key);
+      return publicUrl ?? null;
+    }
+  );
 
   return (
     <div className="max-w-[900px] p-4 mx-auto">
@@ -113,8 +121,9 @@ export default function PostForm({
           <input
             disabled={disabled}
             className="w-full rounded border border-gray-200 px-3 py-2 outline-none focus:border-gray-400"
-            value={postTitle}
-            onChange={(e) => onChangePostTitle(e.target.value)}
+            {...register("postTitle", {
+              onChange: (e) => onChangePostTitle(e.target.value),
+            })}
           />
         </div>
 
@@ -123,16 +132,14 @@ export default function PostForm({
           <textarea
             disabled={disabled}
             className="w-full min-h-[120px] rounded border border-gray-200 px-3 py-2 outline-none focus:border-gray-400"
-            value={content}
-            onChange={(e) => onChangeContent(e.target.value)}
+            {...register("content", {
+              onChange: (e) => onChangeContent(e.target.value),
+            })}
           />
         </div>
 
         <div className="space-y-2">
-          <label
-            htmlFor="thumbnailImageKey"
-            className="block text-sm font-medium text-gray-700"
-          >
+          <label htmlFor="thumbnailImageKey" className="block text-sm font-medium text-gray-700">
             サムネイルURL
           </label>
 
@@ -140,19 +147,19 @@ export default function PostForm({
             disabled={disabled}
             type="file"
             id="thumbnailImageKey"
-            onChange={handleImageChange}
             accept="image/*"
             className="w-full rounded border border-gray-200 px-3 py-2 outline-none focus:border-gray-400 bg-white"
+            {...register("thumbnailFile" as never, {
+              onChange: (e) => {
+                const file = (e.target as HTMLInputElement).files?.[0] ?? null;
+                onChangeThumbnailFile(file);
+              },
+            })}
           />
 
           {thumbnailImageUrl && (
             <div className="mt-2">
-              <Image
-                src={thumbnailImageUrl}
-                alt="thumbnail"
-                width={400}
-                height={400}
-              />
+              <Image src={thumbnailImageUrl} alt="thumbnail" width={400} height={400} />
             </div>
           )}
         </div>
@@ -162,11 +169,12 @@ export default function PostForm({
           <select
             disabled={disabled}
             className="w-full rounded border border-gray-200 bg-white px-3 py-2 outline-none focus:border-gray-400"
-            value={selectedCategoryId}
-            onChange={(e) => {
-              const v = e.target.value;
-              onChangeSelectedCategoryId(v === "" ? "" : Number(v));
-            }}
+            {...register("selectedCategoryId", {
+              onChange: (e) => {
+                const v = e.target.value;
+                onChangeSelectedCategoryId(v === "" ? "" : Number(v));
+              },
+            })}
           >
             <option value="">選択してください</option>
             {categories.map((c) => (

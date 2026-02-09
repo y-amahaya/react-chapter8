@@ -1,54 +1,60 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Category, CategoriesIndexResponse } from "@/app/_types/Category";
 import PostForm from "@/app/admin/_components/PostForm";
 import { useSupabaseSession } from "@/app/_hooks/useSupabaseSession";
 import { supabase } from "@/app/_libs/supabase";
 import { v4 as uuidv4 } from "uuid";
+import { useForm } from "react-hook-form";
+import useSWR from "swr";
+import useSWRMutation from "swr/mutation";
 
 type CategoryOption = Pick<Category, "id" | "name">;
+
+type FormValues = {
+  postTitle: string;
+  content: string;
+};
 
 export default function AdminPostNewPage() {
   const router = useRouter();
 
-  const [postTitle, setPostTitle] = useState("");
-  const [content, setContent] = useState("");
+  const { watch, setValue } = useForm<FormValues>({
+    defaultValues: { postTitle: "", content: "" },
+  });
+
+  const postTitle = watch("postTitle");
+  const content = watch("content");
+
+  const setPostTitle = (v: string) => setValue("postTitle", v);
+  const setContent = (v: string) => setValue("content", v);
+
   const [thumbnailImageKey, setThumbnailImageKey] = useState<string>("");
-
-  const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | "">("");
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const { token } = useSupabaseSession();
 
-  useEffect(() => {
-    if (!token) return;
+  const fetchCategories = async ([url, token]: [string, string]) => {
+    const res = await fetch(url, {
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token,
+      },
+    });
 
-    const fetchCategories = async () => {
-      try {
-        const res = await fetch("/api/admin/categories", {
-          cache: "no-store",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: token,
-          },
-        });
+    if (!res.ok) throw new Error(`Failed to fetch categories: ${res.status}`);
 
-        if (!res.ok) throw new Error(`Failed to fetch categories: ${res.status}`);
+    const data: CategoriesIndexResponse = await res.json();
+    return (data.categories ?? []).map(({ id, name }) => ({ id, name }));
+  };
 
-        const data: CategoriesIndexResponse = await res.json();
-        setCategories((data.categories ?? []).map(({ id, name }) => ({ id, name })));
-      } catch (e) {
-        setErrorMessage(e instanceof Error ? e.message : "カテゴリー取得に失敗しました。");
-      }
-    };
-
-    fetchCategories();
-    }, [token]);
+  const { data: categories = [], error: categoriesError } = useSWR<CategoryOption[]>(
+    token ? ["/api/admin/categories", token] : null,
+    fetchCategories
+  );
 
   const onChangeThumbnailFile = async (file: File | null) => {
     if (!file) return;
@@ -70,43 +76,58 @@ export default function AdminPostNewPage() {
     setThumbnailImageKey(data.path);
   };
 
-  const onSubmit = async () => {
-    setIsSubmitting(true);
-    setErrorMessage(null);
+  const createPost = async (
+    [url, token]: [string, string],
+    { arg }: { arg: any }
+  ) => {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token,
+      },
+      body: JSON.stringify(arg),
+    });
 
-    try {
-      const body = {
-        title: postTitle,
-        content,
-        thumbnailImageKey,
-        categories: selectedCategoryId === "" ? [] : [{ id: selectedCategoryId }],
-      };
-
-      if (!token) return;
-
-      const res = await fetch("/api/admin/posts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token,
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        const msg = data?.message ?? `作成に失敗しました (status: ${res.status})`;
-        throw new Error(msg);
-      }
-
-      router.push("/admin/posts");
-      router.refresh();
-    } catch (e) {
-      setErrorMessage(e instanceof Error ? e.message : "作成に失敗しました。");
-    } finally {
-      setIsSubmitting(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      const msg = data?.message ?? `作成に失敗しました (status: ${res.status})`;
+      throw new Error(msg);
     }
   };
+
+  const { trigger, isMutating, error: submitError } = useSWRMutation(
+    token ? ["/api/admin/posts", token] : null,
+    createPost
+  );
+
+  const onSubmit = async () => {
+    if (!token) return;
+
+    const body = {
+      title: postTitle,
+      content,
+      thumbnailImageKey,
+      categories: selectedCategoryId === "" ? [] : [{ id: selectedCategoryId }],
+    };
+
+    try {
+      await trigger(body);
+      router.push("/admin/posts");
+      router.refresh();
+    } catch {
+    }
+  };
+
+  const isSubmitting = isMutating;
+
+  const errorMessage = useMemo(() => {
+    if (categoriesError instanceof Error) return categoriesError.message;
+    if (submitError instanceof Error) return submitError.message;
+    if (categoriesError) return "カテゴリー取得に失敗しました。";
+    if (submitError) return "作成に失敗しました。";
+    return null;
+  }, [categoriesError, submitError]);
 
   return (
     <PostForm

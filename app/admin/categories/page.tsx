@@ -1,54 +1,57 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import useSWR from "swr";
 import type { CategoriesIndexResponse, Category } from "@/app/_types/Category";
 import { useSupabaseSession } from "@/app/_hooks/useSupabaseSession";
 
-export default function AdminCategoriesPage() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+const fetcherWithToken = async (
+  url: string,
+  token: string
+): Promise<CategoriesIndexResponse> => {
+  const res = await fetch(url, {
+    method: "GET",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: token,
+    },
+  });
 
+  if (!res.ok) {
+    throw new Error(`Failed to fetch categories: ${res.status}`);
+  }
+
+  return res.json();
+};
+
+export default function AdminCategoriesPage() {
   const { token } = useSupabaseSession();
 
-  useEffect(() => {
-    if (!token) return;
+  const { data, isLoading, error } = useSWR<CategoriesIndexResponse>(
+    token ? (["/api/admin/categories", token] as const) : null,
+    ([url, t]: [string, string]) => fetcherWithToken(url, t)
+  );
 
-    const run = async () => {
-      try {
-        setIsLoading(true);
-        setErrorMessage(null);
-
-        const res = await fetch("/api/admin/categories", {
-          method: "GET",
-          cache: "no-store",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: token,
-          },
-        });
-
-        if (!res.ok) {
-          throw new Error(`Failed to fetch categories: ${res.status}`);
-        }
-
-        const data: CategoriesIndexResponse = await res.json();
-        setCategories(data.categories);
-      } catch (e) {
-        setErrorMessage(e instanceof Error ? e.message : "Unknown error");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    run();
-  }, [token]);
+  const categories: Category[] = data?.categories ?? [];
+  const errorMessage: string | null = error
+    ? error instanceof Error
+      ? error.message
+      : "Unknown error"
+    : null;
 
   return (
     <div style={{ padding: "24px 32px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>カテゴリー一覧</h1>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
+          カテゴリー一覧
+        </h1>
 
         <Link
           href="/admin/categories/new"
@@ -71,7 +74,9 @@ export default function AdminCategoriesPage() {
 
       <div style={{ marginTop: 24 }}>
         {isLoading && <p style={{ margin: 0 }}>読み込み中...</p>}
-        {errorMessage && <p style={{ margin: 0, color: "crimson" }}>{errorMessage}</p>}
+        {errorMessage && (
+          <p style={{ margin: 0, color: "crimson" }}>{errorMessage}</p>
+        )}
 
         {!isLoading && !errorMessage && (
           <div style={{ marginTop: 8 }}>
@@ -92,7 +97,9 @@ export default function AdminCategoriesPage() {
             ))}
 
             {categories.length === 0 && (
-              <p style={{ marginTop: 16, color: "#6b7280" }}>カテゴリーがまだありません</p>
+              <p style={{ marginTop: 16, color: "#6b7280" }}>
+                カテゴリーがまだありません
+              </p>
             )}
           </div>
         )}
