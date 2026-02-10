@@ -3,7 +3,6 @@
 import { useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 
 import type {
@@ -12,6 +11,7 @@ import type {
 } from "@/app/_types/Category";
 import CategoryForm from "../_components/CategoryForm";
 import { useSupabaseSession } from "@/app/_hooks/useSupabaseSession";
+import { useFetch } from "@/app/_hooks/useFetch";
 
 type FormValues = { name: string };
 
@@ -29,36 +29,18 @@ export default function AdminCategoryEditPage() {
   const name = watch("name");
   const setName = (v: string) => setValue("name", v);
 
-  const fetchCategory = async ([url, token]: [string, string]) => {
-    const res = await fetch(url, {
-      method: "GET",
-      cache: "no-store",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: token,
-      },
-    });
-
-    if (!res.ok) {
-      const maybe = await res.json().catch(() => null);
-      const msg = maybe?.message ?? `取得に失敗しました (${res.status})`;
-      throw new Error(msg);
-    }
-
-    const data: CategoryShowResponse = await res.json();
-    return data.category;
-  };
+  const endpoint =
+    token && Number.isFinite(categoryId)
+      ? `/api/admin/categories/${categoryId}`
+      : null;
 
   const {
-    data: category,
+    data: categoryData,
     error: categoryError,
     isLoading,
-  } = useSWR(
-    token && Number.isFinite(categoryId)
-      ? [`/api/admin/categories/${categoryId}`, token]
-      : null,
-    fetchCategory
-  );
+  } = useFetch<CategoryShowResponse>(endpoint);
+
+  const category = categoryData?.category;
 
   useEffect(() => {
     if (!category) return;

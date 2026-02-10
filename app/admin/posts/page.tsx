@@ -1,35 +1,12 @@
 "use client";
 
-import useSWR from "swr";
 import Link from "next/link";
 import { AdminPostsIndexResponse } from "../../_types/AdminPosts";
-import { useSupabaseSession } from "../../_hooks/useSupabaseSession";
-
-const fetcherWithToken = async (
-  url: string,
-  token: string
-): Promise<AdminPostsIndexResponse> => {
-  const res = await fetch(url, {
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: token,
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch: ${res.status}`);
-  }
-
-  return res.json();
-};
+import { useFetch } from "../../_hooks/useFetch";
 
 export default function PostsPage() {
-  const { token } = useSupabaseSession();
-
-  const { data, isLoading } = useSWR<AdminPostsIndexResponse>(
-    token ? (["/api/admin/posts", token] as const) : null,
-    ([url, t]: [string, string]) => fetcherWithToken(url, t)
-  );
+  const { data, isLoading } =
+    useFetch<AdminPostsIndexResponse>("/api/admin/posts");
 
   const posts = data?.posts ?? [];
 

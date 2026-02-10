@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { Category, CategoriesIndexResponse } from "@/app/_types/Category";
 import PostForm from "@/app/admin/_components/PostForm";
 import { useSupabaseSession } from "@/app/_hooks/useSupabaseSession";
+import { useFetch } from "@/app/_hooks/useFetch";
 import { supabase } from "@/app/_libs/supabase";
 import { v4 as uuidv4 } from "uuid";
 import { useForm } from "react-hook-form";
-import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 
 type CategoryOption = Pick<Category, "id" | "name">;
@@ -36,25 +36,13 @@ export default function AdminPostNewPage() {
 
   const { token } = useSupabaseSession();
 
-  const fetchCategories = async ([url, token]: [string, string]) => {
-    const res = await fetch(url, {
-      cache: "no-store",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: token,
-      },
-    });
+  const {
+    data: categoriesData,
+    error: categoriesError,
+  } = useFetch<CategoriesIndexResponse>(token ? "/api/admin/categories" : null);
 
-    if (!res.ok) throw new Error(`Failed to fetch categories: ${res.status}`);
-
-    const data: CategoriesIndexResponse = await res.json();
-    return (data.categories ?? []).map(({ id, name }) => ({ id, name }));
-  };
-
-  const { data: categories = [], error: categoriesError } = useSWR<CategoryOption[]>(
-    token ? ["/api/admin/categories", token] : null,
-    fetchCategories
-  );
+  const categories: CategoryOption[] =
+    (categoriesData?.categories ?? []).map(({ id, name }) => ({ id, name }));
 
   const onChangeThumbnailFile = async (file: File | null) => {
     if (!file) return;

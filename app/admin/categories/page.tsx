@@ -1,37 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import useSWR from "swr";
 import type { CategoriesIndexResponse, Category } from "@/app/_types/Category";
-import { useSupabaseSession } from "@/app/_hooks/useSupabaseSession";
-
-const fetcherWithToken = async (
-  url: string,
-  token: string
-): Promise<CategoriesIndexResponse> => {
-  const res = await fetch(url, {
-    method: "GET",
-    cache: "no-store",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: token,
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch categories: ${res.status}`);
-  }
-
-  return res.json();
-};
+import { useFetch } from "@/app/_hooks/useFetch";
 
 export default function AdminCategoriesPage() {
-  const { token } = useSupabaseSession();
-
-  const { data, isLoading, error } = useSWR<CategoriesIndexResponse>(
-    token ? (["/api/admin/categories", token] as const) : null,
-    ([url, t]: [string, string]) => fetcherWithToken(url, t)
-  );
+  const { data, isLoading, error } =
+    useFetch<CategoriesIndexResponse>("/api/admin/categories");
 
   const categories: Category[] = data?.categories ?? [];
   const errorMessage: string | null = error

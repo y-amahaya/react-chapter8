@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 
 import { PostShowResponse } from "@/app/_types/AdminPosts";
 import { Category, CategoriesIndexResponse } from "@/app/_types/Category";
 import PostForm from "@/app/admin/_components/PostForm";
 import { useSupabaseSession } from "@/app/_hooks/useSupabaseSession";
+import { useFetch } from "@/app/_hooks/useFetch";
 import { supabase } from "@/app/_libs/supabase";
 import { v4 as uuidv4 } from "uuid";
 
@@ -42,56 +42,25 @@ export default function AdminPostEditPage() {
 
   const { token } = useSupabaseSession();
 
-  const fetchCategories = async ([url, token]: [string, string]) => {
-    const res = await fetch(url, {
-      cache: "no-store",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: token,
-      },
-    });
-
-    if (!res.ok) throw new Error(`Failed to fetch categories: ${res.status}`);
-
-    const data: CategoriesIndexResponse = await res.json();
-    return (data.categories ?? []).map(({ id, name }) => ({ id, name }));
-  };
-
   const {
-    data: categories = [],
+    data: categoriesData,
     error: categoriesError,
     isLoading: isCategoriesLoading,
-  } = useSWR<CategoryOption[]>(
-    token ? ["/api/admin/categories", token] : null,
-    fetchCategories
-  );
+  } = useFetch<CategoriesIndexResponse>(token ? "/api/admin/categories" : null);
 
-  const fetchPost = async ([url, token]: [string, string]) => {
-    const res = await fetch(url, {
-      cache: "no-store",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: token,
-      },
-    });
+  const categories: CategoryOption[] =
+    (categoriesData?.categories ?? []).map(({ id, name }) => ({ id, name }));
 
-    if (!res.ok) {
-      const d = await res.json().catch(() => null);
-      throw new Error(d?.message ?? `Failed to fetch post: ${res.status}`);
-    }
-
-    const data: PostShowResponse = await res.json();
-    return data.post;
-  };
+  const postEndpoint =
+    token && !isInvalidId ? `/api/admin/posts/${postId}` : null;
 
   const {
-    data: post,
+    data: postData,
     error: postError,
     isLoading: isPostLoading,
-  } = useSWR<PostShowResponse["post"]>(
-    token && !isInvalidId ? [`/api/admin/posts/${postId}`, token] : null,
-    fetchPost
-  );
+  } = useFetch<PostShowResponse>(postEndpoint);
+
+  const post = postData?.post;
 
   useEffect(() => {
     if (!post) return;
@@ -212,7 +181,8 @@ export default function AdminPostEditPage() {
     }
   };
 
-  const isLoading = !token || (!isInvalidId && (isCategoriesLoading || isPostLoading));
+  const isLoading =
+    !token || (!isInvalidId && (isCategoriesLoading || isPostLoading));
 
   const errorMessage = useMemo(() => {
     if (isInvalidId) return "URLのidが不正です。";
