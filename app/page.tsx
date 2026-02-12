@@ -1,45 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useFetchPublic } from "@/app/_hooks/useFetchPublic";
 import Link from "next/link";
-import type { MicroCmsPost } from "./_types/MicroCmsPost";
+import type { PostsIndexResponse } from "@/app/api/posts/route";
+
+type ClientPost = Omit<PostsIndexResponse["posts"][number], "createdAt" | "updatedAt"> & {
+  createdAt: string;
+  updatedAt: string;
+};
 
 export default function PostsPage() {
-  const [posts, setPosts] = useState<MicroCmsPost[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetcher = async () => {
-      try {
-        const res = await fetch('https://ief4q233m4.microcms.io/api/v1/posts', {
-          headers: {
-            'X-MICROCMS-API-KEY': 'oCEtDsxAOdAU46mqoQ196w87Lx9ggMZXpmfS',
-          },
-        });
+const { data, error, isLoading } = useFetchPublic<PostsIndexResponse>("/api/posts");
+const posts = data?.posts as unknown as ClientPost[] | undefined;
 
-        const { contents } = await res.json();
-        setPosts(contents);
-      } catch (e) {
-        console.error(e);
-      }
-
-    setIsLoading(false);
-  };
-
-    fetcher()
-  }, [])
-
-if (isLoading) {
-  return (
-    <main className="max-w-[900px] p-4 mx-auto">
-      <p>読み込み中...</p>
-    </main>
-  );
-}
+    if (isLoading) {
+      return (
+        <main className="max-w-[900px] p-4 mx-auto">
+          <p>読み込み中...</p>
+        </main>
+      );
+    }
 
   return (
     <main className="max-w-[900px] p-4 mx-auto">
-      {posts.map((post) => (
+      {(posts ?? []).map((post) => (
         <Link
           key={post.id}
           href={`/posts/${post.id}`}
@@ -47,16 +32,16 @@ if (isLoading) {
         >
           <div className="flex justify-between items-center">
             <p className="text-[#777] text-[14px] m-0">
-              {new Date(post.createdAt).toLocaleDateString('ja-JP')}
+              {new Date(post.createdAt).toLocaleDateString("ja-JP")}
             </p>
 
             <div className="flex gap-2">
-              {post.categories.map((category) => (
+              {(post.postCategories ?? []).map((pc) => (
                 <span
-                  key={category.id}
+                  key={pc.category.id}
                   className="text-[#4c6ef5] border border-[#4c6ef5] px-2 py-1 text-[12px] rounded"
                 >
-                  {category.name}
+                  {pc.category.name}
                 </span>
               ))}
             </div>
@@ -71,5 +56,5 @@ if (isLoading) {
         </Link>
       ))}
     </main>
-  )
+  );
 }

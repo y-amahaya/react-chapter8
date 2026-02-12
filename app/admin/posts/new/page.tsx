@@ -1,74 +1,117 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Category, CategoriesIndexResponse } from "@/app/_types/Category";
 import PostForm from "@/app/admin/_components/PostForm";
+import { useSupabaseSession } from "@/app/_hooks/useSupabaseSession";
+import { useFetchAuth } from "@/app/_hooks/useFetchAuth";
+import { supabase } from "@/app/_libs/supabase";
+import { v4 as uuidv4 } from "uuid";
+import { useForm } from "react-hook-form";
+import { useMutationAuth } from "@/app/_hooks/useMutationAuth";
 
 type CategoryOption = Pick<Category, "id" | "name">;
+
+type FormValues = {
+  postTitle: string;
+  content: string;
+};
 
 export default function AdminPostNewPage() {
   const router = useRouter();
 
-  const [postTitle, setPostTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [thumbnailUrl, setThumbnailUrl] = useState("https://placehold.jp/800x400.png");
+  const { watch, setValue } = useForm<FormValues>({
+    defaultValues: { postTitle: "", content: "" },
+  });
 
-  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const postTitle = watch("postTitle");
+  const content = watch("content");
+
+  const setPostTitle = (v: string) => setValue("postTitle", v);
+  const setContent = (v: string) => setValue("content", v);
+
+  const [thumbnailImageKey, setThumbnailImageKey] = useState<string>("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | "">("");
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { token } = useSupabaseSession();
 
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const res = await fetch("/api/admin/categories", { cache: "no-store" });
-        if (!res.ok) throw new Error(`Failed to fetch categories: ${res.status}`);
+  const {
+    data: categoriesData,
+    error: categoriesError,
+  } = useFetchAuth<CategoriesIndexResponse>("/api/admin/categories");
 
-        const data: CategoriesIndexResponse = await res.json();
+  const categories: CategoryOption[] =
+    (categoriesData?.categories ?? []).map(({ id, name }) => ({ id, name }));
 
-        setCategories((data.categories ?? []).map(({ id, name }) => ({ id, name })));
-      } catch (e) {
-        setErrorMessage(e instanceof Error ? e.message : "カテゴリー取得に失敗しました。");
-      }
-    };
+  const onChangeThumbnailFile = async (file: File | null) => {
+    if (!file) return;
 
-    fetchCategories();
-  }, []);
+    const filePath = `private/${uuidv4()}`;
 
-  const onSubmit = async () => {
-    setIsSubmitting(true);
-    setErrorMessage(null);
-
-    try {
-      const body = {
-        title: postTitle,
-        content,
-        thumbnailUrl,
-        categories: selectedCategoryId === "" ? [] : [{ id: selectedCategoryId }],
-      };
-
-      const res = await fetch("/api/admin/posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+    const { data, error } = await supabase.storage
+      .from("post_thumbnail")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false,
       });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        const msg = data?.message ?? `作成に失敗しました (status: ${res.status})`;
-        throw new Error(msg);
-      }
+    if (error) {
+      alert(error.message);
+      return;
+    }
 
-      router.push("/admin/posts");
-      router.refresh();
-    } catch (e) {
-      setErrorMessage(e instanceof Error ? e.message : "作成に失敗しました。");
-    } finally {
-      setIsSubmitting(false);
+    setThumbnailImageKey(data.path);
+  };
+
+  const createPost = async (url: string, token: string, arg: any) => {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token,
+      },
+      body: JSON.stringify(arg),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      const msg = data?.message ?? `作成に失敗しました (status: ${res.status})`;
+      throw new Error(msg);
     }
   };
+
+  const { trigger, isMutating, error: submitError, isReady } = useMutationAuth<void, any>(
+    "/api/admin/posts",
+    createPost
+  );
+
+  const onSubmit = async () => {
+    if (!isReady) return;
+
+    const body = {
+      title: postTitle,
+      content,
+      thumbnailImageKey,
+      categories: selectedCategoryId === "" ? [] : [{ id: selectedCategoryId }],
+    };
+
+    try {
+      await trigger(body);
+      router.push("/admin/posts");
+      router.refresh();
+    } catch {}
+  };
+
+  const isSubmitting = isMutating;
+
+  const errorMessage = useMemo(() => {
+    if (categoriesError instanceof Error) return categoriesError.message;
+    if (submitError instanceof Error) return submitError.message;
+    if (categoriesError) return "カテゴリー取得に失敗しました。";
+    if (submitError) return "作成に失敗しました。";
+    return null;
+  }, [categoriesError, submitError]);
 
   return (
     <PostForm
@@ -79,14 +122,14 @@ export default function AdminPostNewPage() {
       onChangePostTitle={setPostTitle}
       content={content}
       onChangeContent={setContent}
-      thumbnailUrl={thumbnailUrl}
-      onChangeThumbnailUrl={setThumbnailUrl}
+      onChangeThumbnailFile={onChangeThumbnailFile}
       categories={categories}
       selectedCategoryId={selectedCategoryId}
       onChangeSelectedCategoryId={setSelectedCategoryId}
       errorMessage={errorMessage}
       isSubmitting={isSubmitting}
       onSubmit={onSubmit}
+      thumbnailImageKey={thumbnailImageKey}
     />
   );
 }

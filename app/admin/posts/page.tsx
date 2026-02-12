@@ -1,33 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AdminPostsIndexResponse } from "../../_types/AdminPosts";
+import { useFetchAuth } from "../../_hooks/useFetchAuth";
 
 export default function PostsPage() {
-  const [posts, setPosts] = useState<AdminPostsIndexResponse["posts"]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data, isLoading } =
+    useFetchAuth<AdminPostsIndexResponse>("/api/admin/posts");
 
-  useEffect(() => {
-    const fetcher = async () => {
-      try {
-        const res = await fetch("/api/admin/posts");
-
-        if (!res.ok) {
-          throw new Error(`Failed to fetch: ${res.status}`);
-        }
-
-        const data: AdminPostsIndexResponse = await res.json();
-        setPosts(data.posts);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetcher();
-  }, []);
+  const posts = data?.posts ?? [];
 
   if (isLoading) {
     return (
@@ -39,17 +20,16 @@ export default function PostsPage() {
 
   return (
     <main className="max-w-[900px] p-4 mx-auto">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-xl font-bold">記事一覧</h1>
 
-    <div className="flex justify-between items-center mb-6">
-      <h1 className="text-xl font-bold">記事一覧</h1>
-
-      <Link
-        href="/admin/posts/new"
-        className="bg-[#4c6ef5] text-white px-4 py-2 rounded text-sm hover:opacity-90"
-      >
-        新規作成
-      </Link>
-    </div>
+        <Link
+          href="/admin/posts/new"
+          className="bg-[#4c6ef5] text-white px-4 py-2 rounded text-sm hover:opacity-90"
+        >
+          新規作成
+        </Link>
+      </div>
 
       {posts.map((post) => (
         <Link

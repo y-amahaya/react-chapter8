@@ -4,5 +4,5 @@ export type Post = {
   content: string;
   createdAt: string;
   categories: string[];
-  thumbnailUrl?: string;
+  thumbnailImageKey: string;
 };

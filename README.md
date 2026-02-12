@@ -36,3 +36,7 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
 # react-chapter8
+
+## 管理者ログイン（検証用）
+メールアドレス：y.a.05.09.24@gmail.com
+パスワード：ShiftB1111

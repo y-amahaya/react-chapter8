@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { useMutationPublic } from "@/app/_hooks/useMutationPublic";
 
 const CONTACT_API =
   "https://1hmfpsvto6.execute-api.ap-northeast-1.amazonaws.com/dev/contacts";
@@ -11,8 +12,6 @@ type ContactForm = {
   message: string;
 };
 
-type ContactErrors = Partial<Record<keyof ContactForm, string>>;
-
 const initialForm: ContactForm = {
   name: "",
   email: "",
@@ -20,82 +19,49 @@ const initialForm: ContactForm = {
 };
 
 export default function ContactPage() {
-  const [form, setForm] = useState<ContactForm>(initialForm);
-  const [errors, setErrors] = useState<ContactErrors>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<ContactForm>({
+    defaultValues: initialForm,
+  });
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
+const sendContact = async (url: string, arg: ContactForm) => {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(arg),
+  });
 
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
+  if (!res.ok) throw new Error("Request failed");
+};
 
-  const validate = (values: ContactForm): ContactErrors => {
-    const nextErrors: ContactErrors = {};
-
-    if (!values.name.trim()) {
-      nextErrors.name = "お名前は必須です。";
-    } else if (values.name.length > 30) {
-      nextErrors.name = "お名前は30文字以内で入力してください。";
-    }
-
-    if (!values.email.trim()) {
-      nextErrors.email = "メールアドレスは必須です。";
-    } else if (!/^\S+@\S+\.\S+$/.test(values.email)) {
-      nextErrors.email = "メールアドレスの形式が正しくありません。";
-    }
-
-    if (!values.message.trim()) {
-      nextErrors.message = "本文は必須です。";
-    } else if (values.message.length > 500) {
-      nextErrors.message = "本文は500文字以内で入力してください。";
-    }
-
-
-    return nextErrors;
-  };
+const { trigger, isMutating } = useMutationPublic<void, ContactForm>(
+  CONTACT_API,
+  sendContact
+);
 
   const handleClear = () => {
-    setForm(initialForm);
-    setErrors({});
+    reset(initialForm);
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    const nextErrors = validate(form);
-    setErrors(nextErrors);
-
-    if (Object.keys(nextErrors).length > 0) return;
-
-    setIsSubmitting(true);
-
+  const onSubmit = handleSubmit(async (data) => {
     try {
-      const res = await fetch(CONTACT_API, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          message: form.message,
-        }),
+      await trigger({
+        name: data.name,
+        email: data.email,
+        message: data.message,
       });
-
-      if (!res.ok) return;
 
       alert("送信しました。");
       handleClear();
-    } finally {
-      setIsSubmitting(false);
+    } catch {
     }
-  };
+  });
 
   return (
     <main className="w-full max-w-[960px] mx-auto px-6 py-16">
@@ -103,7 +69,7 @@ export default function ContactPage() {
         問い合わせフォーム
       </h1>
 
-      <form className="w-full" onSubmit={handleSubmit}>
+      <form className="w-full" onSubmit={onSubmit}>
         <div className="grid grid-cols-[160px_1fr] gap-x-6 items-center mb-6">
           <label htmlFor="name" className="text-[14px] font-semibold">
             お名前
@@ -111,16 +77,20 @@ export default function ContactPage() {
           <div className="w-full">
             <input
               id="name"
-              name="name"
               type="text"
-              value={form.name}
-              onChange={handleChange}
-              disabled={isSubmitting}
+              disabled={isMutating}
               className="w-full box-border border border-[#cfd4dc] rounded-[6px] px-[14px] py-3 text-[14px] outline-none bg-white disabled:opacity-60"
+              {...register("name", {
+                required: "お名前は必須です。",
+                maxLength: {
+                  value: 30,
+                  message: "お名前は30文字以内で入力してください。",
+                },
+              })}
             />
-            {errors.name && (
+            {errors.name?.message && (
               <p className="mt-2 mb-0 text-[12px] text-[#d93025]">
-                {errors.name}
+                {errors.name.message}
               </p>
             )}
           </div>
@@ -133,16 +103,20 @@ export default function ContactPage() {
           <div className="w-full">
             <input
               id="email"
-              name="email"
               type="email"
-              value={form.email}
-              onChange={handleChange}
-              disabled={isSubmitting}
+              disabled={isMutating}
               className="w-full box-border border border-[#cfd4dc] rounded-[6px] px-[14px] py-3 text-[14px] outline-none bg-white disabled:opacity-60"
+              {...register("email", {
+                required: "メールアドレスは必須です。",
+                pattern: {
+                  value: /^\S+@\S+\.\S+$/,
+                  message: "メールアドレスの形式が正しくありません。",
+                },
+              })}
             />
-            {errors.email && (
+            {errors.email?.message && (
               <p className="mt-2 mb-0 text-[12px] text-[#d93025]">
-                {errors.email}
+                {errors.email.message}
               </p>
             )}
           </div>
@@ -155,16 +129,20 @@ export default function ContactPage() {
           <div className="w-full">
             <textarea
               id="message"
-              name="message"
-              value={form.message}
-              onChange={handleChange}
-              disabled={isSubmitting}
+              disabled={isMutating}
               rows={8}
               className="w-full box-border border border-[#cfd4dc] rounded-[6px] px-[14px] py-3 text-[14px] outline-none bg-white min-h-[200px] resize-y disabled:opacity-60"
+              {...register("message", {
+                required: "本文は必須です。",
+                maxLength: {
+                  value: 500,
+                  message: "本文は500文字以内で入力してください。",
+                },
+              })}
             />
-            {errors.message && (
+            {errors.message?.message && (
               <p className="mt-2 mb-0 text-[12px] text-[#d93025]">
-                {errors.message}
+                {errors.message.message}
               </p>
             )}
           </div>
@@ -173,7 +151,7 @@ export default function ContactPage() {
         <div className="flex justify-center gap-4 mt-8">
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isMutating}
             className="border-0 bg-[#111] text-white px-[22px] py-3 rounded-[8px] text-[14px] font-bold cursor-pointer disabled:opacity-60"
           >
             送信
@@ -182,7 +160,7 @@ export default function ContactPage() {
           <button
             type="button"
             onClick={handleClear}
-            disabled={isSubmitting}
+            disabled={isMutating}
             className="border-0 bg-[#e5e7eb] text-[#111] px-[22px] py-3 rounded-[8px] text-[14px] font-bold cursor-pointer disabled:opacity-60"
           >
             クリア

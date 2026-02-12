@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
 
 type Props = {
   title: string;
@@ -21,6 +22,10 @@ type Props = {
   syncNameFromProps?: boolean;
 };
 
+type FormValues = {
+  name: string;
+};
+
 export default function CategoryForm(props: Props) {
   const {
     title,
@@ -36,20 +41,15 @@ export default function CategoryForm(props: Props) {
     syncNameFromProps = false,
   } = props;
 
-  const [localName, setLocalName] = useState(name);
+  const disabled = Boolean(isSubmitting || isUpdating || isDeleting);
+
+  const { register, reset } = useForm<FormValues>({
+    defaultValues: { name },
+  });
 
   useEffect(() => {
-    if (syncNameFromProps) setLocalName(name);
-  }, [name, syncNameFromProps]);
-
-  const value = syncNameFromProps ? localName : name;
-
-  const handleChange = (v: string) => {
-    if (syncNameFromProps) setLocalName(v);
-    onChangeName(v);
-  };
-
-  const disabled = Boolean(isSubmitting || isUpdating || isDeleting);
+    if (syncNameFromProps) reset({ name });
+  }, [name, syncNameFromProps, reset]);
 
   const body = (
     <div className="max-w-[720px]">
@@ -60,12 +60,13 @@ export default function CategoryForm(props: Props) {
       <input
         id="category-name"
         type="text"
-        value={value}
-        onChange={(e) => handleChange(e.target.value)}
         disabled={disabled}
-        className={`w-full h-11 px-3 rounded-md border border-gray-300 outline-none       focus:border-gray-400 ${
+        className={`w-full h-11 px-3 rounded-md border border-gray-300 outline-none focus:border-gray-400 ${
           disabled ? "bg-gray-100 cursor-not-allowed" : "bg-white"
         }`}
+        {...register("name", {
+          onChange: (e) => onChangeName(e.target.value),
+        })}
       />
 
       {errorMessage && (
@@ -78,7 +79,9 @@ export default function CategoryForm(props: Props) {
           disabled={disabled}
           className={[
             "mt-5 h-10 px-[18px] rounded-md border-0 text-white font-bold",
-            disabled ? "bg-gray-600 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700 cursor-pointer",
+            disabled
+              ? "bg-gray-600 cursor-not-allowed"
+              : "bg-indigo-600 hover:bg-indigo-700 cursor-pointer",
           ].join(" ")}
         >
           {isSubmitting ? "作成中..." : "作成"}
@@ -93,7 +96,9 @@ export default function CategoryForm(props: Props) {
             disabled={disabled}
             className={[
               "h-10 px-[18px] rounded-md border-0 text-white font-bold",
-              disabled ? "bg-gray-600 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700 cursor-pointer",
+              disabled
+                ? "bg-gray-600 cursor-not-allowed"
+                : "bg-indigo-600 hover:bg-indigo-700 cursor-pointer",
             ].join(" ")}
           >
             {isUpdating ? "更新中..." : "更新"}
@@ -105,7 +110,9 @@ export default function CategoryForm(props: Props) {
             disabled={disabled}
             className={[
               "h-10 px-[18px] rounded-md border-0 text-white font-bold",
-              disabled ? "bg-gray-600 cursor-not-allowed" : "bg-red-600 hover:bg-red-700 cursor-pointer",
+              disabled
+                ? "bg-gray-600 cursor-not-allowed"
+                : "bg-red-600 hover:bg-red-700 cursor-pointer",
             ].join(" ")}
           >
             {isDeleting ? "削除中..." : "削除"}

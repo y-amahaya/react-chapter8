@@ -1,11 +1,12 @@
 import { prisma } from '@/app/_libs/prisma'
-import { NextResponse } from 'next/server'
+import { authorize } from "@/app/_libs/authorize";
+import { NextRequest, NextResponse } from "next/server";
 
 export type CreatePostRequestBody = {
   title: string
   content: string
   categories: { id: number }[]
-  thumbnailUrl: string
+  thumbnailImageKey: string
 }
 
 export type CreatePostResponse = {
@@ -17,7 +18,7 @@ export type PostIndexResponse = {
     id: number
     title: string
     content: string
-    thumbnailUrl: string
+    thumbnailImageKey: string
     createdAt: Date
     updatedAt: Date
     postCategories: {
@@ -29,7 +30,10 @@ export type PostIndexResponse = {
   }[]
 }
 
-export const GET = async () => {
+export const GET = async (request: NextRequest) => {
+  const unauthorized = await authorize(request);
+  if (unauthorized) return unauthorized;
+
   try {
     const posts = await prisma.post.findMany({
       include: {
@@ -56,17 +60,20 @@ export const GET = async () => {
   }
 }
 
-export const POST = async (request: Request) => {
+export const POST = async (request: NextRequest) => {
+  const unauthorized = await authorize(request);
+  if (unauthorized) return unauthorized;
+
   try {
     const body: CreatePostRequestBody = await request.json()
 
-    const { title, content, categories, thumbnailUrl } = body
+    const { title, content, categories, thumbnailImageKey } = body
 
     const data = await prisma.post.create({
       data: {
         title,
         content,
-        thumbnailUrl,
+        thumbnailImageKey,
       },
     })
 
