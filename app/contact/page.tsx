@@ -1,7 +1,7 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-import useSWRMutation from "swr/mutation";
+import { useMutationPublic } from "@/app/_hooks/useMutationPublic";
 
 const CONTACT_API =
   "https://1hmfpsvto6.execute-api.ap-northeast-1.amazonaws.com/dev/contacts";
@@ -28,20 +28,22 @@ export default function ContactPage() {
     defaultValues: initialForm,
   });
 
-  const { trigger, isMutating } = useSWRMutation(
-    CONTACT_API,
-    async (url, { arg }: { arg: ContactForm }) => {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(arg),
-      });
+const sendContact = async (url: string, arg: ContactForm) => {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(arg),
+  });
 
-      if (!res.ok) throw new Error("Request failed");
-    }
-  );
+  if (!res.ok) throw new Error("Request failed");
+};
+
+const { trigger, isMutating } = useMutationPublic<void, ContactForm>(
+  CONTACT_API,
+  sendContact
+);
 
   const handleClear = () => {
     reset(initialForm);

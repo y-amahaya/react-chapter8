@@ -1,6 +1,6 @@
 "use client";
 
-import useSWR from "swr";
+import { useFetchPublic } from "@/app/_hooks/useFetchPublic";
 import { useParams } from "next/navigation";
 import type { PostShowResponse } from "@/app/api/posts/[id]/route";
 import Image from "next/image";
@@ -8,18 +8,12 @@ import { supabase } from "@/app/_libs/supabase";
 
 type ClientPost = PostShowResponse["post"];
 
-const fetcher = async (url: string): Promise<PostShowResponse> => {
-  const res = await fetch(url, { cache: "no-store" });
-  return res.json();
-};
-
 export default function PostDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
 
-  const { data, isLoading } = useSWR<PostShowResponse>(
-    id ? `/api/posts/${id}` : null,
-    fetcher
+  const { data, isLoading } = useFetchPublic<PostShowResponse>(
+    id ? `/api/posts/${id}` : null
   );
 
   const post: ClientPost | null = data?.post ?? null;

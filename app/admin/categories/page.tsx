@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import type { CategoriesIndexResponse, Category } from "@/app/_types/Category";
-import { useFetch } from "@/app/_hooks/useFetch";
+import { useFetchAuth } from "@/app/_hooks/useFetchAuth";
 
 export default function AdminCategoriesPage() {
   const { data, isLoading, error } =
-    useFetch<CategoriesIndexResponse>("/api/admin/categories");
+    useFetchAuth<CategoriesIndexResponse>("/api/admin/categories");
 
   const categories: Category[] = data?.categories ?? [];
   const errorMessage: string | null = error

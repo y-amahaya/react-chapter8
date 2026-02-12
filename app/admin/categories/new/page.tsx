@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import useSWRMutation from "swr/mutation";
+import { useMutationAuth } from "@/app/_hooks/useMutationAuth";
 import { CreateCategoryRequestBody } from "@/app/_types/Category";
 import CategoryForm from "../_components/CategoryForm";
 import { useSupabaseSession } from "@/app/_hooks/useSupabaseSession";
@@ -21,8 +21,9 @@ export default function AdminCategoryNewPage() {
   const setName = (v: string) => setValue("name", v);
 
   const createCategory = async (
-    [url, token]: [string, string],
-    { arg }: { arg: CreateCategoryRequestBody }
+    url: string,
+    token: string,
+    arg: CreateCategoryRequestBody
   ) => {
     const res = await fetch(url, {
       method: "POST",
@@ -40,10 +41,11 @@ export default function AdminCategoryNewPage() {
     }
   };
 
-  const { trigger, isMutating, error: submitError } = useSWRMutation(
-    token ? ["/api/admin/categories", token] : null,
-    createCategory
-  );
+  const { trigger, isMutating, error: submitError, isReady } =
+    useMutationAuth<void, CreateCategoryRequestBody>(
+      "/api/admin/categories",
+      createCategory
+    );
 
   const isSubmitting = isMutating;
   const errorMessage =
@@ -56,15 +58,14 @@ export default function AdminCategoryNewPage() {
       return;
     }
 
-    if (!token) return;
+  if (!isReady) return;
 
-    try {
-      const body: CreateCategoryRequestBody = { name: trimmed };
-      await trigger(body);
-      router.push("/admin/categories");
-      router.refresh();
-    } catch {
-    }
+  try {
+    const body: CreateCategoryRequestBody = { name: trimmed };
+    await trigger(body);
+    router.push("/admin/categories");
+    router.refresh();
+  } catch {}
   };
 
   return (

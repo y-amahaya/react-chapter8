@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import useSWRMutation from "swr/mutation";
+import { useMutationAuth } from "@/app/_hooks/useMutationAuth";
 
 import { PostShowResponse } from "@/app/_types/AdminPosts";
 import { Category, CategoriesIndexResponse } from "@/app/_types/Category";
 import PostForm from "@/app/admin/_components/PostForm";
 import { useSupabaseSession } from "@/app/_hooks/useSupabaseSession";
-import { useFetch } from "@/app/_hooks/useFetch";
+import { useFetchAuth } from "@/app/_hooks/useFetchAuth";
 import { supabase } from "@/app/_libs/supabase";
 import { v4 as uuidv4 } from "uuid";
 
@@ -46,19 +46,19 @@ export default function AdminPostEditPage() {
     data: categoriesData,
     error: categoriesError,
     isLoading: isCategoriesLoading,
-  } = useFetch<CategoriesIndexResponse>(token ? "/api/admin/categories" : null);
+  } = useFetchAuth<CategoriesIndexResponse>("/api/admin/categories");
 
   const categories: CategoryOption[] =
     (categoriesData?.categories ?? []).map(({ id, name }) => ({ id, name }));
 
   const postEndpoint =
-    token && !isInvalidId ? `/api/admin/posts/${postId}` : null;
+    !isInvalidId ? `/api/admin/posts/${postId}` : null;
 
   const {
     data: postData,
     error: postError,
     isLoading: isPostLoading,
-  } = useFetch<PostShowResponse>(postEndpoint);
+  } = useFetchAuth<PostShowResponse>(postEndpoint);
 
   const post = postData?.post;
 
@@ -93,10 +93,8 @@ export default function AdminPostEditPage() {
     setThumbnailImageKey(data.path);
   };
 
-  const updatePost = async (
-    [url, token]: [string, string],
-    { arg }: { arg: any }
-  ) => {
+  const updatePost = async (url: string, token: string, arg: any) => {
+
     const res = await fetch(url, {
       method: "PUT",
       headers: {
@@ -117,14 +115,12 @@ export default function AdminPostEditPage() {
     trigger: updateTrigger,
     isMutating: isSubmitting,
     error: updateError,
-  } = useSWRMutation(
-    token && !isInvalidId ? [`/api/admin/posts/${postId}`, token] : null,
-    updatePost
-  );
+    isReady: canUpdate,
+  } = useMutationAuth<void, any>(postEndpoint, updatePost);
 
   const onSubmit = async () => {
     if (isInvalidId) return;
-    if (!token) return;
+    if (!canUpdate) return;
 
     const body = {
       title: postTitle,
@@ -137,11 +133,10 @@ export default function AdminPostEditPage() {
       await updateTrigger(body);
       router.push("/admin/posts");
       router.refresh();
-    } catch {
-    }
+    } catch {}
   };
 
-  const deletePost = async ([url, token]: [string, string]) => {
+  const deletePost = async (url: string, token: string, _arg: undefined) => {
     const res = await fetch(url, {
       method: "DELETE",
       headers: {
@@ -161,24 +156,21 @@ export default function AdminPostEditPage() {
     trigger: deleteTrigger,
     isMutating: isDeleting,
     error: deleteError,
-  } = useSWRMutation(
-    token && !isInvalidId ? [`/api/admin/posts/${postId}`, token] : null,
-    deletePost
-  );
+    isReady: canDelete,
+  } = useMutationAuth<void, undefined>(postEndpoint, deletePost);
 
   const onDelete = async () => {
     if (isInvalidId) return;
-    if (!token) return;
+    if (!canDelete) return;
 
     const ok = window.confirm("この記事を削除しますか？");
     if (!ok) return;
 
     try {
-      await deleteTrigger();
+      await deleteTrigger(undefined);
       router.push("/admin/posts");
       router.refresh();
-    } catch {
-    }
+    } catch {}
   };
 
   const isLoading =

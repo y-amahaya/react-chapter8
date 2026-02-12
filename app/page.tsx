@@ -1,6 +1,6 @@
 "use client";
 
-import useSWR from "swr";
+import { useFetchPublic } from "@/app/_hooks/useFetchPublic";
 import Link from "next/link";
 import type { PostsIndexResponse } from "@/app/api/posts/route";
 
@@ -10,18 +10,9 @@ type ClientPost = Omit<PostsIndexResponse["posts"][number], "createdAt" | "updat
 };
 
 export default function PostsPage() {
-  const fetcher = async (url: string) => {
-  const res = await fetch(url, { cache: "no-store" });
 
-    if (!res.ok) {
-      throw new Error(`Failed to fetch posts: ${res.status}`);
-    }
-
-    const data: PostsIndexResponse = await res.json();
-    return data.posts as unknown as ClientPost[];
-  };
-
-  const { data: posts, error, isLoading } = useSWR<ClientPost[]>("/api/posts", fetcher);
+const { data, error, isLoading } = useFetchPublic<PostsIndexResponse>("/api/posts");
+const posts = data?.posts as unknown as ClientPost[] | undefined;
 
     if (isLoading) {
       return (

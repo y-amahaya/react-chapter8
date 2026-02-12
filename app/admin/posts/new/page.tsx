@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { Category, CategoriesIndexResponse } from "@/app/_types/Category";
 import PostForm from "@/app/admin/_components/PostForm";
 import { useSupabaseSession } from "@/app/_hooks/useSupabaseSession";
-import { useFetch } from "@/app/_hooks/useFetch";
+import { useFetchAuth } from "@/app/_hooks/useFetchAuth";
 import { supabase } from "@/app/_libs/supabase";
 import { v4 as uuidv4 } from "uuid";
 import { useForm } from "react-hook-form";
-import useSWRMutation from "swr/mutation";
+import { useMutationAuth } from "@/app/_hooks/useMutationAuth";
 
 type CategoryOption = Pick<Category, "id" | "name">;
 
@@ -39,7 +39,7 @@ export default function AdminPostNewPage() {
   const {
     data: categoriesData,
     error: categoriesError,
-  } = useFetch<CategoriesIndexResponse>(token ? "/api/admin/categories" : null);
+  } = useFetchAuth<CategoriesIndexResponse>("/api/admin/categories");
 
   const categories: CategoryOption[] =
     (categoriesData?.categories ?? []).map(({ id, name }) => ({ id, name }));
@@ -64,10 +64,7 @@ export default function AdminPostNewPage() {
     setThumbnailImageKey(data.path);
   };
 
-  const createPost = async (
-    [url, token]: [string, string],
-    { arg }: { arg: any }
-  ) => {
+  const createPost = async (url: string, token: string, arg: any) => {
     const res = await fetch(url, {
       method: "POST",
       headers: {
@@ -84,13 +81,13 @@ export default function AdminPostNewPage() {
     }
   };
 
-  const { trigger, isMutating, error: submitError } = useSWRMutation(
-    token ? ["/api/admin/posts", token] : null,
+  const { trigger, isMutating, error: submitError, isReady } = useMutationAuth<void, any>(
+    "/api/admin/posts",
     createPost
   );
 
   const onSubmit = async () => {
-    if (!token) return;
+    if (!isReady) return;
 
     const body = {
       title: postTitle,
@@ -103,8 +100,7 @@ export default function AdminPostNewPage() {
       await trigger(body);
       router.push("/admin/posts");
       router.refresh();
-    } catch {
-    }
+    } catch {}
   };
 
   const isSubmitting = isMutating;

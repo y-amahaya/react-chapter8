@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { AdminPostsIndexResponse } from "../../_types/AdminPosts";
-import { useFetch } from "../../_hooks/useFetch";
+import { useFetchAuth } from "../../_hooks/useFetchAuth";
 
 export default function PostsPage() {
   const { data, isLoading } =
-    useFetch<AdminPostsIndexResponse>("/api/admin/posts");
+    useFetchAuth<AdminPostsIndexResponse>("/api/admin/posts");
 
   const posts = data?.posts ?? [];
 

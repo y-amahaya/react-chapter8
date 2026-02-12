@@ -3,7 +3,7 @@
 import { supabase } from '@/app/_libs/supabase'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
-import useSWRMutation from 'swr/mutation'
+import { useMutationPublic } from '@/app/_hooks/useMutationPublic'
 
 type FormValues = {
   email: string
@@ -20,15 +20,17 @@ export default function Page() {
     },
   })
 
-  const { trigger, isMutating } = useSWRMutation(
+  const signIn = async (_url: string, arg: FormValues) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: arg.email,
+      password: arg.password,
+    })
+    if (error) throw error
+  }
+
+  const { trigger, isMutating } = useMutationPublic<void, FormValues>(
     'auth/sign-in',
-    async (_key, { arg }: { arg: FormValues }) => {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: arg.email,
-        password: arg.password,
-      })
-      if (error) throw error
-    }
+    signIn
   )
 
   const onSubmit = handleSubmit(async (data) => {

@@ -29,7 +29,7 @@ const fetcherWithToken = async <T>(url: string, token: string): Promise<T> => {
   return res.json();
 };
 
-export const useFetch = <T>(endpoint: string | null): UseFetchResult<T> => {
+export const useFetchAuth = <T>(endpoint: string | null): UseFetchResult<T> => {
   const { token } = useSupabaseSession();
 
   const key: readonly [string, string] | null =

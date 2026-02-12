@@ -2,9 +2,8 @@
 
 import { useEffect } from "react";
 import Image from "next/image";
-import useSWR from "swr";
+import { useThumbnailPublicUrl } from "@/app/_hooks/useThumbnailPublicUrl";
 import { useForm } from "react-hook-form";
-import { supabase } from "@/app/_libs/supabase";
 import type { AdminPostCategory } from "@/app/_types/AdminPosts";
 
 type CategoryOption = AdminPostCategory["category"];
@@ -89,15 +88,8 @@ export default function PostForm({
     });
   }, [postTitle, content, selectedCategoryId, reset]);
 
-  const { data: thumbnailImageUrl } = useSWR(
-    thumbnailImageKey ? ["thumbnail", thumbnailImageKey] : null,
-    async ([_key, key]) => {
-      const {
-        data: { publicUrl },
-      } = await supabase.storage.from("post_thumbnail").getPublicUrl(key);
-      return publicUrl ?? null;
-    }
-  );
+  const { data: thumbnailImageUrl } = useThumbnailPublicUrl(thumbnailImageKey);
+
 
   return (
     <div className="max-w-[900px] p-4 mx-auto">

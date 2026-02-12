@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import useSWRMutation from "swr/mutation";
+import { useMutationAuth } from "@/app/_hooks/useMutationAuth";
 
 import type {
   CategoryShowResponse,
@@ -11,7 +11,7 @@ import type {
 } from "@/app/_types/Category";
 import CategoryForm from "../_components/CategoryForm";
 import { useSupabaseSession } from "@/app/_hooks/useSupabaseSession";
-import { useFetch } from "@/app/_hooks/useFetch";
+import { useFetchAuth } from "@/app/_hooks/useFetchAuth";
 
 type FormValues = { name: string };
 
@@ -30,7 +30,7 @@ export default function AdminCategoryEditPage() {
   const setName = (v: string) => setValue("name", v);
 
   const endpoint =
-    token && Number.isFinite(categoryId)
+    Number.isFinite(categoryId)
       ? `/api/admin/categories/${categoryId}`
       : null;
 
@@ -38,7 +38,7 @@ export default function AdminCategoryEditPage() {
     data: categoryData,
     error: categoryError,
     isLoading,
-  } = useFetch<CategoryShowResponse>(endpoint);
+  } = useFetchAuth<CategoryShowResponse>(endpoint);
 
   const category = categoryData?.category;
 
@@ -48,8 +48,9 @@ export default function AdminCategoryEditPage() {
   }, [category, setValue]);
 
   const updateCategory = async (
-    [url, token]: [string, string],
-    { arg }: { arg: UpdateCategoryRequestBody }
+    url: string,
+    token: string,
+    arg: UpdateCategoryRequestBody
   ) => {
     const res = await fetch(url, {
       method: "PUT",
@@ -71,12 +72,8 @@ export default function AdminCategoryEditPage() {
     trigger: updateTrigger,
     isMutating: isUpdating,
     error: updateError,
-  } = useSWRMutation(
-    token && Number.isFinite(categoryId)
-      ? [`/api/admin/categories/${categoryId}`, token]
-      : null,
-    updateCategory
-  );
+    isReady: canUpdate,
+  } = useMutationAuth<void, UpdateCategoryRequestBody>(endpoint, updateCategory);
 
   const onUpdate = async () => {
     const trimmed = name.trim();
@@ -84,7 +81,7 @@ export default function AdminCategoryEditPage() {
       alert("カテゴリー名を入力してください");
       return;
     }
-    if (!token) return;
+    if (!canUpdate) return;
 
     try {
       const body: UpdateCategoryRequestBody = { name: trimmed };
@@ -94,7 +91,7 @@ export default function AdminCategoryEditPage() {
     }
   };
 
-  const deleteCategory = async ([url, token]: [string, string]) => {
+  const deleteCategory = async (url: string, token: string, _arg: undefined) => {
     const res = await fetch(url, {
       method: "DELETE",
       headers: {
@@ -114,24 +111,19 @@ export default function AdminCategoryEditPage() {
     trigger: deleteTrigger,
     isMutating: isDeleting,
     error: deleteError,
-  } = useSWRMutation(
-    token && Number.isFinite(categoryId)
-      ? [`/api/admin/categories/${categoryId}`, token]
-      : null,
-    deleteCategory
-  );
+    isReady: canDelete,
+  } = useMutationAuth<void, undefined>(endpoint, deleteCategory);
 
   const onDelete = async () => {
     const ok = window.confirm("このカテゴリーを削除しますか？");
     if (!ok) return;
-    if (!token) return;
+    if (!canDelete) return;
 
     try {
-      await deleteTrigger();
+      await deleteTrigger(undefined);
       router.push("/admin/categories");
       router.refresh();
-    } catch {
-    }
+    } catch {}
   };
 
   const errorMessage = useMemo(() => {
